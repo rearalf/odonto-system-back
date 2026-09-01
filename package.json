@@ -15,13 +15,21 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "oxlint src/ test/",
+    "lint:fix": "oxlint src/ test/ --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "migration:run": "typeorm-ts-node-esm migration:run -d src/data-source.ts",
-    "migration:revert": "typeorm-ts-node-esm migration:revert -d src/data-source.ts"
+    "migration:revert": "typeorm-ts-node-esm migration:revert -d src/data-source.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,mts,cts,tsx,mjs,cjs,js,jsx}": [
+      "prettier --write",
+      "oxlint --fix"
+    ]
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
@@ -35,11 +43,14 @@
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
+    "helmet": "^8.3.0",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@nestjs/cli": "^12.0.0",
     "@nestjs/mau": "^0.2.6",
     "@nestjs/schematics": "^12.0.0",
@@ -48,6 +59,8 @@
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
     "oxlint": "^1.58.0",
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",

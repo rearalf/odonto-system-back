@@ -1,9 +1,29 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxc_linter/src/rules.rs",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn",
+    "pedantic": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
   "rules": {
     "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-floating-promises": "warn"
+    "@typescript-eslint/no-floating-promises": "warn",
+    "no-unused-vars": ["warn", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
+    "typescript/no-extraneous-class": ["warn", { "allowWithDecorator": true }]
   },
+  "overrides": [
+    {
+      "files": ["**/*.{spec,test}.{ts,mts,cts,tsx}"],
+      "rules": {
+        "vitest/no-focused-tests": "error"
+      }
+    }
+  ],
   "env": {
     "node": true
   }
