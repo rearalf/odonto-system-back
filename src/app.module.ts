@@ -3,8 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { validate } from './config/env.validation.js';
 import { databaseConfig } from './config/database.config.js';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
 
 @Module({
   imports: [
@@ -17,7 +15,7 @@ import { AppService } from './app.service.js';
       useFactory: () => databaseConfig(),
     }),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
