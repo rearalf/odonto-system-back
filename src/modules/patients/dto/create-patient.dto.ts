@@ -8,24 +8,68 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  ValidateNested,
+  MaxLength,
 } from 'class-validator';
 import { GenderType } from '../../../common/enums/gender-type.enum.js';
-import { CreatePersonDto } from '../../persons/dto/create-person.dto.js';
 
 export class CreatePatientDto {
+  @ApiProperty({ example: 'Juan' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  firstName: string;
+
+  @ApiPropertyOptional({ example: 'Carlos' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  middleName?: string;
+
+  @ApiProperty({ example: 'Pérez' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  lastName: string;
+
+  @ApiPropertyOptional({ example: 'profile.jpg' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  profilePictureName?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  profilePictureUrl?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsInt()
+  userId?: number;
+
   @ApiProperty({ example: 1 })
   @IsInt()
   @IsNotEmpty()
-  personId: number;
+  personTypeId: number;
 
-  @ApiPropertyOptional({
-    description: 'Datos de persona anidados (se crea si no se envía personId)',
-  })
+  @ApiPropertyOptional({ example: '123456789' })
   @IsOptional()
-  @ValidateNested()
-  @Type(() => CreatePersonDto)
-  person?: CreatePersonDto;
+  @IsString()
+  @MaxLength(9)
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'Av. Corrientes 1234' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  address?: string;
+
+  @ApiPropertyOptional({ example: 'Odontólogo' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  occupation?: string;
 
   @ApiProperty({ example: '1990-05-15' })
   @IsDate()

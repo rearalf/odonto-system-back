@@ -1,9 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  MaxLength,
+  IsNotEmpty,
+  IsOptional,
+} from 'class-validator';
 
 export class CreatePersonDto {
   @ApiProperty({ example: 'Juan' })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
   firstName: string;
 
@@ -15,6 +22,7 @@ export class CreatePersonDto {
 
   @ApiProperty({ example: 'Pérez' })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
   lastName: string;
 

@@ -1,10 +1,6 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Patient } from './entities/patient.entity.js';
 import { PersonsService } from '../persons/persons.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
@@ -16,6 +12,7 @@ export class PatientsService {
     @InjectRepository(Patient)
     private readonly patientRepository: Repository<Patient>,
     private readonly personsService: PersonsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   findAll(): Promise<Patient[]> {
@@ -35,34 +32,50 @@ export class PatientsService {
     return patient;
   }
 
-  async create(dto: CreatePatientDto): Promise<Patient> {
-    let personId = dto.personId;
+  async create(
+    dto: CreatePatientDto,
+    _profilePicture?: Express.Multer.File,
+  ): Promise<Patient> {
+    const {
+      firstName,
+      middleName,
+      lastName,
+      profilePictureName,
+      profilePictureUrl,
+      userId,
+      personTypeId,
+      phone,
+      address,
+      occupation,
+      ...patientData
+    } = dto;
 
-    if (personId) {
-      await this.personsService.findOne(personId);
-    } else if (dto.person) {
-      const person = await this.personsService.create(dto.person);
-      personId = person.id;
-    } else {
-      throw new BadRequestException(
-        'Either personId or person data must be provided',
-      );
-    }
+    // TODO: guardar profilePicture (disk, S3, etc.) y usar el resultado para profilePictureName/profilePictureUrl
 
-    const patient = this.patientRepository.create({
-      ...dto,
-      personId,
+    return this.dataSource.transaction(async (manager) => {
+      const person = await this.personsService.createWithManager(manager, {
+        firstName,
+        middleName,
+        lastName,
+        profilePictureName,
+        profilePictureUrl,
+        userId,
+        personTypeId,
+        phone,
+        address,
+        occupation,
+      });
+
+      const patient = manager.create(Patient, {
+        ...patientData,
+        personId: person.id,
+      });
+      return manager.save(patient);
     });
-    return this.patientRepository.save(patient);
   }
 
   async update(id: number, dto: UpdatePatientDto): Promise<Patient> {
     await this.findOne(id);
-
-    if (dto.personId) {
-      await this.personsService.findOne(dto.personId);
-    }
-
     await this.patientRepository.update(id, dto);
     return this.findOne(id);
   }
