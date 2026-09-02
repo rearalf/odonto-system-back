@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Patient } from './entities/patient.entity.js';
 import { PersonsService } from '../persons/persons.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
@@ -12,6 +12,7 @@ export class PatientsService {
     @InjectRepository(Patient)
     private readonly patientRepository: Repository<Patient>,
     private readonly personsService: PersonsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   findAll(): Promise<Patient[]> {
@@ -31,7 +32,10 @@ export class PatientsService {
     return patient;
   }
 
-  async create(dto: CreatePatientDto): Promise<Patient> {
+  async create(
+    dto: CreatePatientDto,
+    _profilePicture?: Express.Multer.File,
+  ): Promise<Patient> {
     const {
       firstName,
       middleName,
@@ -46,24 +50,28 @@ export class PatientsService {
       ...patientData
     } = dto;
 
-    const person = await this.personsService.create({
-      firstName,
-      middleName,
-      lastName,
-      profilePictureName,
-      profilePictureUrl,
-      userId,
-      personTypeId,
-      phone,
-      address,
-      occupation,
-    });
+    // TODO: guardar profilePicture (disk, S3, etc.) y usar el resultado para profilePictureName/profilePictureUrl
 
-    const patient = this.patientRepository.create({
-      ...patientData,
-      personId: person.id,
+    return this.dataSource.transaction(async (manager) => {
+      const person = await this.personsService.createWithManager(manager, {
+        firstName,
+        middleName,
+        lastName,
+        profilePictureName,
+        profilePictureUrl,
+        userId,
+        personTypeId,
+        phone,
+        address,
+        occupation,
+      });
+
+      const patient = manager.create(Patient, {
+        ...patientData,
+        personId: person.id,
+      });
+      return manager.save(patient);
     });
-    return this.patientRepository.save(patient);
   }
 
   async update(id: number, dto: UpdatePatientDto): Promise<Patient> {
