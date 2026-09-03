@@ -5,7 +5,6 @@ export const CreatePatientSwaggerSchema: SchemaObject = {
   required: [
     'firstName',
     'lastName',
-    'personTypeId',
     'birthDate',
     'gender',
     'completeOdontogram',
@@ -33,11 +32,6 @@ export const CreatePatientSwaggerSchema: SchemaObject = {
       type: 'string',
       example: 'Doe',
       description: 'Last name of the person',
-    },
-    personTypeId: {
-      type: 'integer',
-      example: 1,
-      description: 'ID reference for the person type catalog',
     },
     birthDate: {
       type: 'string',
