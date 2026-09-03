@@ -26,18 +26,6 @@ export class CreatePersonDto {
   @MaxLength(255)
   lastName: string;
 
-  @ApiPropertyOptional({ example: 'profile.jpg' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  profilePictureName?: string;
-
-  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  profilePictureUrl?: string;
-
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()

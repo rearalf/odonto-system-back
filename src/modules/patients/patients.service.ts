@@ -42,8 +42,6 @@ export class PatientsService {
       firstName,
       middleName,
       lastName,
-      profilePictureName,
-      profilePictureUrl,
       userId,
       phone,
       address,
@@ -51,15 +49,11 @@ export class PatientsService {
       ...patientData
     } = dto;
 
-    // TODO: guardar profilePicture (disk, S3, etc.) y usar el resultado para profilePictureName/profilePictureUrl
-
     return this.dataSource.transaction(async (manager) => {
       const person = await this.personsService.createWithManager(manager, {
         firstName,
         middleName,
         lastName,
-        profilePictureName,
-        profilePictureUrl,
         userId,
         personTypeId: PERSON_TYPE_ID.PATIENT,
         phone,

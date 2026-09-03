@@ -47,7 +47,7 @@ export const CreatePatientSwaggerSchema: SchemaObject = {
     },
     phone: {
       type: 'string',
-      example: '+1 555-123-4567',
+      example: '12345678',
       description: 'Primary contact phone number',
     },
     address: {
@@ -64,16 +64,6 @@ export const CreatePatientSwaggerSchema: SchemaObject = {
       type: 'integer',
       example: 42,
       description: 'Associated user account ID if applicable',
-    },
-    profilePictureName: {
-      type: 'string',
-      example: 'avatar-uuid-123.png',
-      description: 'Stored filename of the profile picture',
-    },
-    profilePictureUrl: {
-      type: 'string',
-      example: 'https://storage.provider.com/bucket/avatar.png',
-      description: 'Public or presigned URL to the profile image',
     },
 
     // Patient Specific & Clinical Information

@@ -2,9 +2,12 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseIntPipe,
   Patch,
   Post,
@@ -60,7 +63,16 @@ export class PatientsController {
   })
   create(
     @Body() dto: CreatePatientDto,
-    @UploadedFile() profilePicture?: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    profilePicture?: Express.Multer.File,
   ) {
     return this.patientsService.create(dto, profilePicture);
   }

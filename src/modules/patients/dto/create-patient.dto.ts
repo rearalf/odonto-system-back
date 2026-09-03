@@ -48,50 +48,22 @@ export class CreatePatientDto {
   lastName: string;
 
   @ApiPropertyOptional({
-    description: 'Original or generated filename of the stored profile avatar.',
-    example: 'profile.jpg',
-  })
-  @IsOptional()
-  @IsString({
-    message:
-      'El nombre del archivo de la foto de perfil debe ser una cadena de texto.',
-  })
-  @MaxLength(255, {
-    message:
-      'El nombre del archivo de la foto de perfil no puede exceder los 255 caracteres.',
-  })
-  profilePictureName?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Public or presigned URL where the patient profile image is hosted.',
-    example: 'https://example.com/profile.jpg',
-  })
-  @IsOptional()
-  @IsString({
-    message: 'La URL de la foto de perfil debe ser una cadena de texto válida.',
-  })
-  @MaxLength(255, {
-    message: 'La URL de la foto de perfil no puede exceder los 255 caracteres.',
-  })
-  profilePictureUrl?: string;
-
-  @ApiPropertyOptional({
     description:
       'Identifier of the application user account associated with this person, if exists.',
     example: 1,
   })
   @IsOptional()
   @IsInt({ message: 'El ID de usuario debe ser un número entero.' })
+  @Type(() => Number)
   userId?: number;
 
   @ApiPropertyOptional({
     description: 'Contact phone number of the patient.',
-    example: '123456789',
+    example: '12345678',
   })
   @IsOptional()
   @IsString({ message: 'El teléfono debe ser una cadena de texto.' })
-  @MaxLength(9, { message: 'El teléfono no puede exceder los 9 caracteres.' })
+  @MaxLength(8, { message: 'El teléfono no puede exceder los 8 caracteres.' })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -174,6 +146,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El campo odontograma completo debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   @IsNotEmpty({ message: 'El estado del odontograma completo es obligatorio.' })
   completeOdontogram: boolean;
 
@@ -197,6 +170,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SNC debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSncIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -208,6 +182,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SVC debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSvcIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -219,6 +194,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SE debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSeIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -230,6 +206,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SME debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSmeIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -241,6 +218,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SR debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSrIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -251,6 +229,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SU debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSuIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -262,6 +241,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SGU debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSguIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -273,6 +253,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SGI debe ser un valor booleano.',
   })
+  @Type(() => Boolean)
   hasSgiIssues?: boolean;
 
   @ApiPropertyOptional({
