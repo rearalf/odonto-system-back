@@ -10,145 +10,280 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+
 import { GenderType } from '../../../common/enums/gender-type.enum.js';
 
 export class CreatePatientDto {
-  @ApiProperty({ example: 'Juan' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
+  @ApiProperty({
+    description: "Primary first name of the patient's person record.",
+    example: 'Juan',
+  })
+  @IsString({ message: 'El primer nombre debe ser una cadena de texto.' })
+  @IsNotEmpty({ message: 'El primer nombre es obligatorio.' })
+  @MaxLength(255, {
+    message: 'El primer nombre no puede exceder los 255 caracteres.',
+  })
   firstName: string;
 
-  @ApiPropertyOptional({ example: 'Carlos' })
+  @ApiPropertyOptional({
+    description: "Middle or second name of the patient's person record.",
+    example: 'Carlos',
+  })
   @IsOptional()
-  @IsString()
-  @MaxLength(255)
+  @IsString({ message: 'El segundo nombre debe ser una cadena de texto.' })
+  @MaxLength(255, {
+    message: 'El segundo nombre no puede exceder los 255 caracteres.',
+  })
   middleName?: string;
 
-  @ApiProperty({ example: 'Pérez' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
+  @ApiProperty({
+    description: "Primary last name/surname of the patient's person record.",
+    example: 'Pérez',
+  })
+  @IsString({ message: 'El apellido debe ser una cadena de texto.' })
+  @IsNotEmpty({ message: 'El apellido es obligatorio.' })
+  @MaxLength(255, {
+    message: 'El apellido no puede exceder los 255 caracteres.',
+  })
   lastName: string;
 
-  @ApiPropertyOptional({ example: 'profile.jpg' })
+  @ApiPropertyOptional({
+    description: 'Original or generated filename of the stored profile avatar.',
+    example: 'profile.jpg',
+  })
   @IsOptional()
-  @IsString()
-  @MaxLength(255)
+  @IsString({
+    message:
+      'El nombre del archivo de la foto de perfil debe ser una cadena de texto.',
+  })
+  @MaxLength(255, {
+    message:
+      'El nombre del archivo de la foto de perfil no puede exceder los 255 caracteres.',
+  })
   profilePictureName?: string;
 
-  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
+  @ApiPropertyOptional({
+    description:
+      'Public or presigned URL where the patient profile image is hosted.',
+    example: 'https://example.com/profile.jpg',
+  })
   @IsOptional()
-  @IsString()
-  @MaxLength(255)
+  @IsString({
+    message: 'La URL de la foto de perfil debe ser una cadena de texto válida.',
+  })
+  @MaxLength(255, {
+    message: 'La URL de la foto de perfil no puede exceder los 255 caracteres.',
+  })
   profilePictureUrl?: string;
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional({
+    description:
+      'Identifier of the application user account associated with this person, if exists.',
+    example: 1,
+  })
   @IsOptional()
-  @IsInt()
+  @IsInt({ message: 'El ID de usuario debe ser un número entero.' })
   userId?: number;
 
-  @ApiProperty({ example: 1 })
-  @IsInt()
-  @IsNotEmpty()
-  personTypeId: number;
-
-  @ApiPropertyOptional({ example: '123456789' })
+  @ApiPropertyOptional({
+    description: 'Contact phone number of the patient.',
+    example: '123456789',
+  })
   @IsOptional()
-  @IsString()
-  @MaxLength(9)
+  @IsString({ message: 'El teléfono debe ser una cadena de texto.' })
+  @MaxLength(9, { message: 'El teléfono no puede exceder los 9 caracteres.' })
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'Av. Corrientes 1234' })
+  @ApiPropertyOptional({
+    description: 'Residential or correspondence address.',
+    example: 'Av. Corrientes 1234',
+  })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
+  @IsString({ message: 'La dirección debe ser una cadena de texto.' })
+  @MaxLength(100, {
+    message: 'La dirección no puede exceder los 100 caracteres.',
+  })
   address?: string;
 
-  @ApiPropertyOptional({ example: 'Odontólogo' })
+  @ApiPropertyOptional({
+    description: 'Current employment, trade, or profession.',
+    example: 'Odontólogo',
+  })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
+  @IsString({ message: 'La ocupación debe ser una cadena de texto.' })
+  @MaxLength(50, {
+    message: 'La ocupación no puede exceder los 50 caracteres.',
+  })
   occupation?: string;
 
-  @ApiProperty({ example: '1990-05-15' })
-  @IsDate()
+  @ApiProperty({
+    description: 'Birth date in ISO format (YYYY-MM-DD).',
+    example: '1990-05-15',
+  })
+  @IsDate({ message: 'La fecha de nacimiento debe ser una fecha válida.' })
   @Type(() => Date)
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'La fecha de nacimiento es obligatoria.' })
   birthDate: Date;
 
-  @ApiPropertyOptional({ example: 'Sin antecedentes relevantes' })
+  @ApiPropertyOptional({
+    description:
+      'Summary of past clinical background, chronic illnesses, and medical history.',
+    example: 'Sin antecedentes relevantes',
+  })
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'El historial médico debe ser una cadena de texto.' })
   medicalHistory?: string;
 
-  @ApiPropertyOptional({ example: 'Penicilina' })
+  @ApiPropertyOptional({
+    description:
+      'Known drug, food, or material allergies and adverse reactions.',
+    example: 'Penicilina',
+  })
   @IsOptional()
-  @IsString()
+  @IsString({
+    message: 'Las reacciones alérgicas deben ser una cadena de texto.',
+  })
   allergicReactions?: string;
 
-  @ApiPropertyOptional({ example: 'Ibuprofeno 400mg diario' })
+  @ApiPropertyOptional({
+    description: 'Current prescribed medications or active systemic therapies.',
+    example: 'Ibuprofeno 400mg diario',
+  })
   @IsOptional()
-  @IsString()
+  @IsString({
+    message: 'El tratamiento sistémico actual debe ser una cadena de texto.',
+  })
   currentSystemicTreatment?: string;
 
-  @ApiPropertyOptional({ example: 'Hemoglobina: 14 g/dL' })
+  @ApiPropertyOptional({
+    description:
+      'Recent clinical laboratory findings, bloodwork, or test annotations.',
+    example: 'Hemoglobina: 14 g/dL',
+  })
   @IsOptional()
-  @IsString()
+  @IsString({
+    message: 'Los resultados de laboratorio deben ser una cadena de texto.',
+  })
   labResults?: string;
 
-  @ApiProperty({ example: false })
-  @IsBoolean()
-  @IsNotEmpty()
+  @ApiProperty({
+    description:
+      'Flags whether the initial comprehensive odontogram evaluation has been completed.',
+    example: false,
+  })
+  @IsBoolean({
+    message: 'El campo odontograma completo debe ser un valor booleano.',
+  })
+  @IsNotEmpty({ message: 'El estado del odontograma completo es obligatorio.' })
   completeOdontogram: boolean;
 
-  @ApiProperty({ enum: GenderType, example: GenderType.MALE })
-  @IsEnum(GenderType)
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Biological gender or legal gender identity.',
+    enum: GenderType,
+    example: GenderType.MALE,
+  })
+  @IsEnum(GenderType, {
+    message: `El género debe ser un valor válido (${Object.values(GenderType).join(', ')}).`,
+  })
+  @IsNotEmpty({ message: 'El género es obligatorio.' })
   gender: GenderType;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Central Nervous System (SNC) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SNC debe ser un valor booleano.',
+  })
   hasSncIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Cardiovascular System (SVC) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SVC debe ser un valor booleano.',
+  })
   hasSvcIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Endocrine System (SE) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SE debe ser un valor booleano.',
+  })
   hasSeIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Musculoskeletal System (SME) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SME debe ser un valor booleano.',
+  })
   hasSmeIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Respiratory System (SR) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SR debe ser un valor booleano.',
+  })
   hasSrIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description: 'Presence of Urinary System (SU) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SU debe ser un valor booleano.',
+  })
   hasSuIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Genitourinary System (SGU) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SGU debe ser un valor booleano.',
+  })
   hasSguIssues?: boolean;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({
+    description:
+      'Presence of Gastrointestinal System (SGI) conditions or complications.',
+    example: false,
+  })
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({
+    message: 'El indicador de afecciones del SGI debe ser un valor booleano.',
+  })
   hasSgiIssues?: boolean;
 
-  @ApiPropertyOptional({ example: 'Evaluación normal' })
+  @ApiPropertyOptional({
+    description:
+      'Additional clinical observations and findings from the systemic review.',
+    example: 'Evaluación normal',
+  })
   @IsOptional()
-  @IsString()
+  @IsString({
+    message:
+      'Las notas de evaluación de sistemas deben ser una cadena de texto.',
+  })
   systemEvaluationNotes?: string;
 }
