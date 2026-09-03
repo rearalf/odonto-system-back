@@ -45,7 +45,7 @@ export class PatientsController {
   @ApiOperation({
     summary: 'Create patient',
     description:
-      'Creates a person record and an associated patient record in a single database transaction. Person-related fields (firstName, lastName, personTypeId, etc.) are used to create the person entity, while the remaining fields populate the patient entity.',
+      'Creates a person record and an associated patient record in a single database transaction. Person-related fields (firstName, lastName, etc.) are used to create the person entity, while the remaining fields populate the patient entity.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiProduces('application/json')
