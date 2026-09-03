@@ -1,0 +1,7 @@
+export enum PERSON_TYPE_ID {
+  ADMINISTRATOR = 1,
+  RECEPTIONIST = 2,
+  DENTAL_ASSISTANT = 3,
+  DOCTOR = 4,
+  PATIENT = 5,
+}

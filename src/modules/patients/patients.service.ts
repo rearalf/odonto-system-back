@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+
 import { Patient } from './entities/patient.entity.js';
 import { PersonsService } from '../persons/persons.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
 import { UpdatePatientDto } from './dto/update-patient.dto.js';
+import { PERSON_TYPE_ID } from '../../common/enums/person-type.enum.js';
 
 @Injectable()
 export class PatientsService {
@@ -43,7 +45,6 @@ export class PatientsService {
       profilePictureName,
       profilePictureUrl,
       userId,
-      personTypeId,
       phone,
       address,
       occupation,
@@ -60,7 +61,7 @@ export class PatientsService {
         profilePictureName,
         profilePictureUrl,
         userId,
-        personTypeId,
+        personTypeId: PERSON_TYPE_ID.PATIENT,
         phone,
         address,
         occupation,
