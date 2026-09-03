@@ -14,8 +14,12 @@ import { PatientsModule } from './modules/patients/patients.module.js';
       validate,
     }),
     TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: () => databaseConfig(),
+      useFactory: () => ({
+        ...databaseConfig(),
+        autoLoadEntities: true,
+      }),
     }),
     PersonTypesModule,
     PersonsModule,
