@@ -1,5 +1,6 @@
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Delete,
   FileTypeValidator,
@@ -31,6 +32,7 @@ import { PatientsService } from './patients.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
 import { UpdatePatientDto } from './dto/update-patient.dto.js';
 import { FilterPatientDto } from './dto/filter-patient.dto.js';
+import { PatientResponseDto } from './dto/patient-response.dto.js';
 
 import { CreatePatientSwaggerSchema } from './schema/create-patient.schema.js';
 import { PaginationHeadersInterceptor } from '../../common/interceptors/pagination-headers.interceptor.js';
@@ -69,11 +71,13 @@ export class PatientsController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Patient found and returned successfully.',
+    type: PatientResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Patient with the given ID does not exist.',
   })
+  @UseInterceptors(ClassSerializerInterceptor)
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.patientsService.findOne(id);
   }

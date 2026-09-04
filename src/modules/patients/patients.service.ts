@@ -100,7 +100,7 @@ export class PatientsService {
     return { data, meta };
   }
 
-  async findOne(id: number): Promise<Patient> {
+  private async findPatientEntity(id: number): Promise<Patient> {
     const patient = await this.patientRepository.findOne({
       where: { id },
       relations: ['person', 'person.personType'],
@@ -109,6 +109,76 @@ export class PatientsService {
       throw new NotFoundException(`Patient with id ${id} not found`);
     }
     return patient;
+  }
+
+  async findOne(id: number) {
+    const patient = await this.patientRepository
+      .createQueryBuilder('patient')
+      .leftJoinAndSelect('patient.person', 'person')
+      .leftJoinAndSelect('person.personType', 'personType')
+      .select([
+        'patient.id',
+        'patient.birthDate',
+        'patient.gender',
+        'patient.medicalHistory',
+        'patient.allergicReactions',
+        'patient.currentSystemicTreatment',
+        'patient.labResults',
+        'patient.completeOdontogram',
+        'patient.hasSncIssues',
+        'patient.hasSvcIssues',
+        'patient.hasSeIssues',
+        'patient.hasSmeIssues',
+        'patient.hasSrIssues',
+        'patient.hasSuIssues',
+        'patient.hasSguIssues',
+        'patient.hasSgiIssues',
+        'patient.systemEvaluationNotes',
+        'person.id',
+        'person.firstName',
+        'person.middleName',
+        'person.lastName',
+        'person.profilePictureUrl',
+        'person.phone',
+        'person.address',
+        'person.occupation',
+        'personType.id',
+        'personType.name',
+      ])
+      .where('patient.id = :id', { id })
+      .getOne();
+
+    if (!patient) {
+      throw new NotFoundException(`Patient with id ${id} not found`);
+    }
+
+    const {
+      hasSncIssues,
+      hasSvcIssues,
+      hasSeIssues,
+      hasSmeIssues,
+      hasSrIssues,
+      hasSuIssues,
+      hasSguIssues,
+      hasSgiIssues,
+      systemEvaluationNotes,
+      ...rest
+    } = patient;
+
+    return {
+      ...rest,
+      systemicReview: {
+        hasSncIssues,
+        hasSvcIssues,
+        hasSeIssues,
+        hasSmeIssues,
+        hasSrIssues,
+        hasSuIssues,
+        hasSguIssues,
+        hasSgiIssues,
+        systemEvaluationNotes,
+      },
+    };
   }
 
   async create(
@@ -147,11 +217,11 @@ export class PatientsService {
   }
 
   async update(id: number, dto: UpdatePatientDto): Promise<Patient> {
-    return this.findOne(id);
+    return this.findPatientEntity(id);
   }
 
   async remove(id: number): Promise<void> {
-    await this.findOne(id);
+    await this.findPatientEntity(id);
     await this.patientRepository.softDelete(id);
   }
 }
