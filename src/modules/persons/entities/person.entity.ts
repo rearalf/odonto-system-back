@@ -104,14 +104,14 @@ export class Person extends BaseEntity {
   personTypeId: number;
 
   @ApiPropertyOptional({
-    description: 'Contact phone number (e.g., 8-9 digits format)',
+    description: 'Contact phone number (8 digits)',
     example: '71234567',
-    maxLength: 9,
+    maxLength: 8,
     nullable: true,
   })
   @Column({
     type: 'varchar',
-    length: 9,
+    length: 8,
     nullable: true,
     comment: 'Contact phone number',
   })

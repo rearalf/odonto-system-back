@@ -35,10 +35,10 @@ export class CreatePersonDto {
   @IsInt()
   personTypeId: number;
 
-  @ApiPropertyOptional({ example: '123456789' })
+  @ApiPropertyOptional({ example: '71234567' })
   @IsOptional()
   @IsString()
-  @MaxLength(9)
+  @MaxLength(8)
   phone?: string;
 
   @ApiPropertyOptional({ example: 'Av. Corrientes 1234' })
