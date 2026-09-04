@@ -30,6 +30,7 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins === '*' ? true : allowedOrigins.split(','),
     credentials: false,
+    exposedHeaders: ['page', 'per_page', 'total_count', 'total_pages'],
   });
 
   app.use(cookieParser());

@@ -47,7 +47,7 @@ export const CreatePatientSwaggerSchema: SchemaObject = {
     },
     phone: {
       type: 'string',
-      example: '12345678',
+      example: '71234567',
       description: 'Primary contact phone number',
     },
     address: {

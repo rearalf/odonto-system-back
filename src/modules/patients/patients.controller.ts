@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -19,14 +20,20 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiProduces,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+
 import { PatientsService } from './patients.service.js';
+
 import { CreatePatientDto } from './dto/create-patient.dto.js';
 import { UpdatePatientDto } from './dto/update-patient.dto.js';
+import { FilterPatientDto } from './dto/filter-patient.dto.js';
+
 import { CreatePatientSwaggerSchema } from './schema/create-patient.schema.js';
+import { PaginationHeadersInterceptor } from '../../common/interceptors/pagination-headers.interceptor.js';
 
 @ApiTags('patients')
 @Controller('patients')
@@ -34,11 +41,39 @@ export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   @Get()
-  findAll() {
-    return this.patientsService.findAll();
+  @UseInterceptors(PaginationHeadersInterceptor)
+  @ApiOperation({
+    summary: 'List all patients',
+    description:
+      'Returns all active patients with their associated person and person type data. Soft-deleted records are excluded.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of patients returned successfully.',
+  })
+  findAll(@Query() filterPatientDto: FilterPatientDto) {
+    return this.patientsService.findAll(filterPatientDto);
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get patient by ID',
+    description:
+      'Returns a single patient by its ID, including associated person and person type data. Throws 404 if not found.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Unique identifier of the patient',
+    example: 1,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Patient found and returned successfully.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Patient with the given ID does not exist.',
+  })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.patientsService.findOne(id);
   }

@@ -1,12 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Brackets, DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
 
 import { Patient } from './entities/patient.entity.js';
+
 import { PersonsService } from '../persons/persons.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
 import { UpdatePatientDto } from './dto/update-patient.dto.js';
+import { FilterPatientDto } from './dto/filter-patient.dto.js';
+
 import { PERSON_TYPE_ID } from '../../common/enums/person-type.enum.js';
+import { unaccent } from '../../common/utils/unaccent.js';
+import {
+  PaginationHelper,
+  PaginationMeta,
+} from '../../common/helpers/pagination-helper.js';
+import { IPatientsAllFormatRow } from './interfaces/patient.interface.js';
+import { calculateAge } from '../../common/utils/calculateAge.js';
 
 @Injectable()
 export class PatientsService {
@@ -17,10 +27,77 @@ export class PatientsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  findAll(): Promise<Patient[]> {
-    return this.patientRepository.find({
-      relations: ['person', 'person.personType'],
+  async findAll(
+    filterPatientDto: FilterPatientDto,
+  ): Promise<{ data: IPatientsAllFormatRow[]; meta: PaginationMeta | null }> {
+    const selectQuery = this.patientRepository.createQueryBuilder('patient');
+
+    if (filterPatientDto.search?.trim()) {
+      const searchNormalized = unaccent(filterPatientDto.search.trim());
+      selectQuery.andWhere(
+        new Brackets((qb) => {
+          qb.where('unaccent(person.firstName) ILIKE :filtro', {
+            filtro: `%${searchNormalized}%`,
+          })
+            .orWhere('unaccent(person.middleName) ILIKE :filtro', {
+              filtro: `%${searchNormalized}%`,
+            })
+            .orWhere('unaccent(person.lastName) ILIKE :filtro', {
+              filtro: `%${searchNormalized}%`,
+            });
+        }),
+      );
+    }
+
+    selectQuery.leftJoinAndSelect('patient.person', 'person');
+
+    if (filterPatientDto.pagination) {
+      PaginationHelper.paginate(
+        selectQuery,
+        filterPatientDto.page,
+        filterPatientDto.per_page,
+      );
+    }
+
+    const [patients, count] = await selectQuery.getManyAndCount();
+
+    const meta = PaginationHelper.buildMeta(count, filterPatientDto);
+
+    const data = patients.map((patient) => {
+      const person = patient.person;
+
+      const fullName = [person.firstName, person.middleName, person.lastName]
+        .filter(Boolean)
+        .join(' ');
+
+      const hasSystemicRisk = Boolean(
+        patient.hasSncIssues ||
+        patient.hasSvcIssues ||
+        patient.hasSeIssues ||
+        patient.hasSmeIssues ||
+        patient.hasSrIssues ||
+        patient.hasSuIssues ||
+        patient.hasSguIssues ||
+        patient.hasSgiIssues,
+      );
+
+      return {
+        id: patient.id,
+        fullName,
+        phone: person.phone || null,
+        avatarUrl: person.profilePictureUrl,
+        birthday: patient.birthDate,
+        age: calculateAge(patient.birthDate),
+        gender: patient.gender,
+        hasAllergies: Boolean(patient.allergicReactions?.trim()),
+        allergicReactions: patient.allergicReactions,
+        medicalHistory: patient.medicalHistory,
+        completeOdontogram: patient.completeOdontogram,
+        hasSystemicRisk,
+      };
     });
+
+    return { data, meta };
   }
 
   async findOne(id: number): Promise<Patient> {
@@ -70,8 +147,6 @@ export class PatientsService {
   }
 
   async update(id: number, dto: UpdatePatientDto): Promise<Patient> {
-    await this.findOne(id);
-    await this.patientRepository.update(id, dto);
     return this.findOne(id);
   }
 

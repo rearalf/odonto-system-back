@@ -8,12 +8,21 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
 } from 'class-validator';
 
 import { GenderType } from '../../../common/enums/gender-type.enum.js';
+import { TransformBoolean } from '../../../common/dto/transform-boolean.js';
 
 export class CreatePatientDto {
+  @ApiPropertyOptional({
+    description:
+      'Profile picture file (handled via multipart/form-data file upload).',
+  })
+  @IsOptional()
+  profilePicture?: string;
+
   @ApiProperty({
     description: "Primary first name of the patient's person record.",
     example: 'Juan',
@@ -59,11 +68,14 @@ export class CreatePatientDto {
 
   @ApiPropertyOptional({
     description: 'Contact phone number of the patient.',
-    example: '12345678',
+    example: '71234567',
   })
   @IsOptional()
   @IsString({ message: 'El teléfono debe ser una cadena de texto.' })
   @MaxLength(8, { message: 'El teléfono no puede exceder los 8 caracteres.' })
+  @Matches(/^\d{8}$/, {
+    message: 'El teléfono debe contener exactamente 8 dígitos.',
+  })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -146,7 +158,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El campo odontograma completo debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   @IsNotEmpty({ message: 'El estado del odontograma completo es obligatorio.' })
   completeOdontogram: boolean;
 
@@ -170,7 +182,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SNC debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSncIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -182,7 +194,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SVC debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSvcIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -194,7 +206,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SE debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSeIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -206,7 +218,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SME debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSmeIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -218,7 +230,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SR debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSrIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -229,7 +241,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SU debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSuIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -241,7 +253,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SGU debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSguIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -253,7 +265,7 @@ export class CreatePatientDto {
   @IsBoolean({
     message: 'El indicador de afecciones del SGI debe ser un valor booleano.',
   })
-  @Type(() => Boolean)
+  @TransformBoolean()
   hasSgiIssues?: boolean;
 
   @ApiPropertyOptional({
@@ -265,6 +277,10 @@ export class CreatePatientDto {
   @IsString({
     message:
       'Las notas de evaluación de sistemas deben ser una cadena de texto.',
+  })
+  @MaxLength(255, {
+    message:
+      'Las notas de evaluación de sistemas no pueden exceder los 255 caracteres.',
   })
   systemEvaluationNotes?: string;
 }
