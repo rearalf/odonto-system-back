@@ -163,6 +163,24 @@ export class PatientsController {
   }
 
   @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete patient',
+    description:
+      'Soft-deletes a patient and its associated person record in a single transaction.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Unique identifier of the patient',
+    example: 1,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Patient and person deleted successfully.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Patient with the given ID does not exist.',
+  })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.patientsService.remove(id);
   }

@@ -301,7 +301,10 @@ export class PatientsService {
   }
 
   async remove(id: number): Promise<void> {
-    await this.findPatientEntity(id);
-    await this.patientRepository.softDelete(id);
+    const patient = await this.findPatientEntity(id);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.softDelete(Patient, id);
+      await manager.softDelete(Person, patient.personId);
+    });
   }
 }
