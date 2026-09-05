@@ -12,7 +12,7 @@ export const databaseConfig = (): DataSourceOptions => ({
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
   logging: process.env.DB_LOGGING === 'true',
   entities: ['dist/**/entities/*.entity{.ts,.js}'],
-  migrations: ['dist/db/migrations/*{.ts,.js}'],
+  migrations: ['dist/migrations/*{.ts,.js}'],
   extra: {
     ssl:
       process.env.NODE_ENV === 'production'
