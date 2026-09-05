@@ -10,6 +10,7 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 
 import { GenderType } from '../../../common/enums/gender-type.enum.js';
@@ -72,6 +73,7 @@ export class CreatePatientDto {
   })
   @IsOptional()
   @IsString({ message: 'El teléfono debe ser una cadena de texto.' })
+  @ValidateIf((_, value) => value !== '' && value != null)
   @MaxLength(8, { message: 'El teléfono no puede exceder los 8 caracteres.' })
   @Matches(/^\d{8}$/, {
     message: 'El teléfono debe contener exactamente 8 dígitos.',
