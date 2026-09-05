@@ -3,6 +3,7 @@ import { Brackets, DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { Patient } from './entities/patient.entity.js';
+import { Person } from '../persons/entities/person.entity.js';
 
 import { PersonsService } from '../persons/persons.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
@@ -216,8 +217,87 @@ export class PatientsService {
     });
   }
 
-  async update(id: number, dto: UpdatePatientDto): Promise<Patient> {
-    return this.findPatientEntity(id);
+  async update(
+    id: number,
+    dto: UpdatePatientDto,
+    _profilePicture?: Express.Multer.File,
+  ) {
+    const patient = await this.findPatientEntity(id);
+
+    const {
+      firstName,
+      middleName,
+      lastName,
+      userId,
+      phone,
+      address,
+      occupation,
+      systemEvaluationNotes,
+      ...patientData
+    } = dto;
+
+    const hasPersonFields =
+      firstName !== undefined ||
+      middleName !== undefined ||
+      lastName !== undefined ||
+      userId !== undefined ||
+      phone !== undefined ||
+      address !== undefined ||
+      occupation !== undefined;
+
+    return this.dataSource.transaction(async (manager) => {
+      if (hasPersonFields) {
+        const personUpdate: Record<string, unknown> = {};
+        if (firstName !== undefined) personUpdate.firstName = firstName;
+        if (middleName !== undefined) personUpdate.middleName = middleName;
+        if (lastName !== undefined) personUpdate.lastName = lastName;
+        if (userId !== undefined) personUpdate.userId = userId;
+        if (phone !== undefined) personUpdate.phone = phone;
+        if (address !== undefined) personUpdate.address = address;
+        if (occupation !== undefined) personUpdate.occupation = occupation;
+
+        await manager.update(Person, patient.personId, personUpdate);
+      }
+
+      const patientUpdate: Record<string, unknown> = {};
+      if (patientData.birthDate !== undefined)
+        patientUpdate.birthDate = patientData.birthDate;
+      if (patientData.gender !== undefined)
+        patientUpdate.gender = patientData.gender;
+      if (patientData.medicalHistory !== undefined)
+        patientUpdate.medicalHistory = patientData.medicalHistory;
+      if (patientData.allergicReactions !== undefined)
+        patientUpdate.allergicReactions = patientData.allergicReactions;
+      if (patientData.currentSystemicTreatment !== undefined)
+        patientUpdate.currentSystemicTreatment =
+          patientData.currentSystemicTreatment;
+      if (patientData.labResults !== undefined)
+        patientUpdate.labResults = patientData.labResults;
+      if (patientData.completeOdontogram !== undefined)
+        patientUpdate.completeOdontogram = patientData.completeOdontogram;
+      if (patientData.hasSncIssues !== undefined)
+        patientUpdate.hasSncIssues = patientData.hasSncIssues;
+      if (patientData.hasSvcIssues !== undefined)
+        patientUpdate.hasSvcIssues = patientData.hasSvcIssues;
+      if (patientData.hasSeIssues !== undefined)
+        patientUpdate.hasSeIssues = patientData.hasSeIssues;
+      if (patientData.hasSmeIssues !== undefined)
+        patientUpdate.hasSmeIssues = patientData.hasSmeIssues;
+      if (patientData.hasSrIssues !== undefined)
+        patientUpdate.hasSrIssues = patientData.hasSrIssues;
+      if (patientData.hasSuIssues !== undefined)
+        patientUpdate.hasSuIssues = patientData.hasSuIssues;
+      if (patientData.hasSguIssues !== undefined)
+        patientUpdate.hasSguIssues = patientData.hasSguIssues;
+      if (patientData.hasSgiIssues !== undefined)
+        patientUpdate.hasSgiIssues = patientData.hasSgiIssues;
+
+      if (Object.keys(patientUpdate).length > 0) {
+        await manager.update(Patient, id, patientUpdate);
+      }
+
+      return this.findOne(id);
+    });
   }
 
   async remove(id: number): Promise<void> {
