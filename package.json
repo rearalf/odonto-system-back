@@ -27,8 +27,7 @@
     "migration:generate": "tsx node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
     "db:drop": "tsx node_modules/typeorm/cli.js schema:drop -d src/data-source.ts",
     "db:reset": "npm run db:drop && npm run migration:run && npm run seed",
-    "seed": "tsx src/database/seeders/seed.ts",
-    "prepare": "node -e \"process.env.CI||require('child_process').execSync('husky')\""
+    "seed": "tsx src/database/seeders/seed.ts"
   },
   "lint-staged": {
     "*.{ts,mts,cts,tsx,mjs,cjs,js,jsx}": [
