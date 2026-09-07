@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.env
+.env.*
+!.env.example
+.husky
+docs
+*.md
+.prettierrc
+commitlint.config.ts
+oxlint.json
+vitest.config.ts
+vitest.config.e2e.ts
+skills-lock.json
+.agents
