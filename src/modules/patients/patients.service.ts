@@ -232,7 +232,6 @@ export class PatientsService {
       phone,
       address,
       occupation,
-      systemEvaluationNotes,
       ...patientData
     } = dto;
 
@@ -291,6 +290,8 @@ export class PatientsService {
         patientUpdate.hasSguIssues = patientData.hasSguIssues;
       if (patientData.hasSgiIssues !== undefined)
         patientUpdate.hasSgiIssues = patientData.hasSgiIssues;
+      if (patientData.systemEvaluationNotes !== undefined)
+        patientUpdate.systemEvaluationNotes = patientData.systemEvaluationNotes;
 
       if (Object.keys(patientUpdate).length > 0) {
         await manager.update(Patient, id, patientUpdate);
