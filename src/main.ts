@@ -7,8 +7,11 @@ import {
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
-import * as helmet from 'helmet';
+import helmetModule from 'helmet';
+import type { RequestHandler } from 'express';
 import { ConfigService } from '@nestjs/config';
+
+const helmet = helmetModule as unknown as () => RequestHandler;
 
 function flattenValidationErrors(errors: ValidationError[]): string[] {
   return errors.flatMap((error) => {
@@ -26,7 +29,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const allowedOrigins: string = configService.get('CORS_ORIGIN') ?? '*';
 
-  app.use(helmet.default());
+  app.use(helmet());
   app.enableCors({
     origin: allowedOrigins === '*' ? true : allowedOrigins.split(','),
     credentials: false,
