@@ -7,7 +7,7 @@ import {
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
-import helmet from 'helmet';
+import * as helmet from 'helmet';
 import { ConfigService } from '@nestjs/config';
 
 function flattenValidationErrors(errors: ValidationError[]): string[] {
@@ -26,7 +26,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const allowedOrigins: string = configService.get('CORS_ORIGIN') ?? '*';
 
-  app.use(helmet());
+  app.use(helmet.default());
   app.enableCors({
     origin: allowedOrigins === '*' ? true : allowedOrigins.split(','),
     credentials: false,
