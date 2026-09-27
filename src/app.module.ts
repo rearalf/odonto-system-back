@@ -19,6 +19,8 @@ import { PatientsModule } from './modules/patients/patients.module.js';
       useFactory: () => ({
         ...databaseConfig(),
         autoLoadEntities: true,
+        retryAttempts: 1,
+        retryDelay: 1000,
       }),
     }),
     PersonTypesModule,
