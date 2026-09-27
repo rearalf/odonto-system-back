@@ -6,6 +6,7 @@ import { databaseConfig } from './config/database.config.js';
 import { PersonTypesModule } from './modules/person-types/person-types.module.js';
 import { PersonsModule } from './modules/persons/persons.module.js';
 import { PatientsModule } from './modules/patients/patients.module.js';
+import { SpecialtiesModule } from './modules/specialties/specialties.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { PatientsModule } from './modules/patients/patients.module.js';
     PersonTypesModule,
     PersonsModule,
     PatientsModule,
+    SpecialtiesModule,
   ],
   controllers: [],
   providers: [],
