@@ -3,12 +3,13 @@ import {
   ValidationPipe,
   BadRequestException,
   ValidationError,
+  Logger,
 } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
 import helmetModule from 'helmet';
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 
 const helmet = helmetModule as unknown as () => RequestHandler;
@@ -24,7 +25,7 @@ function flattenValidationErrors(errors: ValidationError[]): string[] {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { abortOnError: false });
 
   const configService = app.get(ConfigService);
   const allowedOrigins: string = configService.get('CORS_ORIGIN') ?? '*';
@@ -64,6 +65,35 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document);
   }
 
+  return app;
+}
+
+const logger = new Logger('Bootstrap');
+const log = (msg: string, err?: unknown) =>
+  err === undefined
+    ? logger.log(msg)
+    : logger.error(msg, err instanceof Error ? err.stack : String(err));
+
+process.on('unhandledRejection', (err) => log('unhandledRejection', err));
+process.on('uncaughtException', (err) => log('uncaughtException', err));
+
+log(`booting ${process.env.NODE_ENV} vercel=${!!process.env.VERCEL}`);
+
+const app = await bootstrap().catch((err: unknown) => {
+  log('bootstrap failed', err);
+  process.exit(1);
+});
+
+await app.init().catch((err: unknown) => {
+  log('init failed', err);
+  process.exit(1);
+});
+
+log('ready');
+
+export default (req: Request, res: Response) =>
+  app.getHttpAdapter().getInstance()(req, res);
+
+if (!process.env.VERCEL) {
   await app.listen(process.env.PORT ?? 3000);
 }
-await bootstrap();
