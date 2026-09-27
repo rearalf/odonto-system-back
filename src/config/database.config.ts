@@ -11,6 +11,7 @@ export const databaseConfig = (): DataSourceOptions => ({
   database: process.env.DB_DATABASE || 'database',
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
   logging: process.env.DB_LOGGING === 'true',
+  connectTimeoutMS: 5000,
   entities: ['dist/**/entities/*.entity{.ts,.js}'],
   migrations: ['dist/migrations/*{.ts,.js}'],
   extra: {

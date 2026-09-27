@@ -6,6 +6,7 @@ import {
   Max,
   Min,
   validateSync,
+  IsOptional,
 } from 'class-validator';
 
 enum Environment {
@@ -21,6 +22,7 @@ class EnvironmentVariables {
   @IsInt()
   @Min(1)
   @Max(65535)
+  @IsOptional()
   PORT: number;
 
   @IsString()
@@ -41,9 +43,11 @@ class EnvironmentVariables {
   DB_DATABASE: string;
 
   @IsEnum(['true', 'false'])
+  @IsOptional()
   DB_SYNCHRONIZE: string;
 
   @IsEnum(['true', 'false'])
+  @IsOptional()
   DB_LOGGING: string;
 }
 
