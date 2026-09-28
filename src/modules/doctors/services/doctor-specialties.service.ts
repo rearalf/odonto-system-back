@@ -162,7 +162,6 @@ export class DoctorSpecialtiesService {
       await this.assertSpecialtyIsUsable(doctorId, item.specialtyId, manager);
     }
 
-    // ponytail: si el lote trae varias is_primary, gana la última
     const primaryIndex = items.findLastIndex((item) => item.isPrimary === true);
     if (primaryIndex !== -1) {
       await this.demoteOtherPrimaries(doctorId, manager);

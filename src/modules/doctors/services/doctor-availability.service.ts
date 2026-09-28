@@ -28,8 +28,6 @@ interface AvailabilityPayload {
   specificDate: string | null;
 }
 
-// ponytail: la API acepta HH:MM pero Postgres devuelve HH:MM:SS; normalizo para
-// poder comparar y solapar horas como strings.
 function toTimeString(value: string): string {
   const [hours, minutes, seconds = '00'] = value.split(':');
   return `${hours}:${minutes}:${seconds}`;
@@ -108,7 +106,6 @@ export class DoctorAvailabilityService {
   }> {
     await this.assertDoctorExists(doctorId);
 
-    // ponytail: mediodía evita que el desfase horario del servidor mueva el día
     const target = new Date(`${dto.date}T12:00:00`);
     const today = new Date();
     today.setHours(0, 0, 0, 0);

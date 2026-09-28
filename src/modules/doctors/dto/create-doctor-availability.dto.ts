@@ -40,8 +40,6 @@ export class CreateDoctorAvailabilityDto {
   })
   endTime: string;
 
-  // ponytail: sin `= 30` a propósito, PartialType heredaría el default y PATCH
-  // pisaría el slot_duration guardado cuando el cliente no manda el campo
   @ApiPropertyOptional({
     description: 'Length in minutes of each bookable slot inside the block',
     example: 30,
