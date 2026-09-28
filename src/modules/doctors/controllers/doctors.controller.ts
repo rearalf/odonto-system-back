@@ -2,24 +2,29 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  ApiBadRequestResponse,
   ApiBody,
-  ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiProduces,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -29,6 +34,10 @@ import { Doctor } from '../entities/doctor.entity.js';
 import { DoctorsService } from '../services/doctors.service.js';
 import { FilterDoctorDto } from '../dto/filter-doctor.dto.js';
 import { UpdateDoctorDto } from '../dto/update-doctor.dto.js';
+import {
+  CreateDoctorSwaggerSchema,
+  UpdateDoctorSwaggerSchema,
+} from '../schema/doctor.schema.js';
 
 import { PaginationHeadersInterceptor } from '../../../common/interceptors/pagination-headers.interceptor.js';
 
@@ -72,56 +81,85 @@ export class DoctorsController {
   }
 
   @Post()
+  @UseInterceptors(FileInterceptor('profilePicture'))
   @ApiOperation({
     summary: 'Create doctor',
     description:
-      'Creates a doctor attached to an existing person. The person must have person_type_id 4 (Doctor) and must not be registered as patient. Specialties can be attached in the same transaction.',
+      'Creates the person record and the doctor record in a single database transaction. The person is always created with person_type_id 4 (Doctor), so it cannot collide with an existing patient. Specialties can be attached in the same transaction. Accepts multipart/form-data, with specialties sent as a JSON string.',
   })
-  @ApiBody({ type: CreateDoctorDto })
-  @ApiCreatedResponse({ type: Doctor })
-  @ApiBadRequestResponse({
-    description: 'The person exists but is not registered as a doctor.',
-  })
-  @ApiNotFoundResponse({
-    description: 'The referenced person does not exist.',
-  })
-  @ApiConflictResponse({
+  @ApiConsumes('multipart/form-data')
+  @ApiProduces('application/json')
+  @ApiBody({
     description:
-      'The person is already registered as a doctor or as a patient, or a specialty is repeated.',
+      'Doctor creation payload including binary profile picture and qualification data',
+    schema: CreateDoctorSwaggerSchema,
   })
-  create(@Body() dto: CreateDoctorDto) {
-    return this.doctorsService.create(dto);
+  @ApiCreatedResponse({ type: Doctor })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description:
+      'The payload is invalid, e.g. the phone or the specialties JSON is malformed.',
+  })
+  create(
+    @Body() dto: CreateDoctorDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    profilePicture?: Express.Multer.File,
+  ) {
+    return this.doctorsService.create(dto, profilePicture);
   }
 
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('profilePicture'))
   @ApiOperation({
     summary: 'Update doctor',
     description:
-      'Updates the qualification and/or the person behind the doctor. Changing the person re-runs the validations applied on creation.',
+      'Updates the person fields and/or the qualification of the doctor within a single transaction. Specialties are not touched here, they have their own endpoints under /doctors/:id/specialties. Accepts multipart/form-data.',
   })
   @ApiParam({
     name: 'id',
     description: 'Unique identifier of the doctor',
     example: 1,
   })
-  @ApiBody({ type: UpdateDoctorDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiProduces('application/json')
+  @ApiBody({
+    description: 'Doctor update payload (all fields optional)',
+    schema: UpdateDoctorSwaggerSchema,
+  })
   @ApiOkResponse({ type: Doctor })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
-  @ApiConflictResponse({
-    description:
-      'The person is already registered as a doctor or as a patient.',
-  })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDoctorDto) {
-    return this.doctorsService.update(id, dto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDoctorDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    profilePicture?: Express.Multer.File,
+  ) {
+    return this.doctorsService.update(id, dto, profilePicture);
   }
 
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete doctor',
     description:
-      'Soft-deletes a doctor together with its specialties, availability blocks and unavailability blocks.',
+      'Soft-deletes a doctor together with its person record, specialties, availability blocks and unavailability blocks.',
   })
   @ApiParam({
     name: 'id',

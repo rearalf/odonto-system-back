@@ -13,8 +13,7 @@ import { DoctorUnavailabilityService } from './services/doctor-unavailability.se
 import { Doctor } from './entities/doctor.entity.js';
 import { DoctorsController } from './controllers/doctors.controller.js';
 import { DoctorsService } from './services/doctors.service.js';
-import { Patient } from '../patients/entities/patient.entity.js';
-import { Person } from '../persons/entities/person.entity.js';
+import { PersonsModule } from '../persons/persons.module.js';
 import { Specialty } from '../specialties/entities/specialty.entity.js';
 
 @Module({
@@ -24,10 +23,9 @@ import { Specialty } from '../specialties/entities/specialty.entity.js';
       DoctorSpecialty,
       DoctorAvailability,
       DoctorUnavailability,
-      Person,
-      Patient,
       Specialty,
     ]),
+    PersonsModule,
   ],
   controllers: [
     DoctorsController,

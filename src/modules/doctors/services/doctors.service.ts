@@ -1,14 +1,8 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Brackets,
   DataSource,
-  EntityManager,
   QueryDeepPartialEntity,
   Repository,
 } from 'typeorm';
@@ -18,8 +12,8 @@ import { DoctorSpecialty } from '../entities/doctor-specialty.entity.js';
 import { DoctorUnavailability } from '../entities/doctor-unavailability.entity.js';
 import { Doctor } from '../entities/doctor.entity.js';
 
-import { Patient } from '../../patients/entities/patient.entity.js';
 import { Person } from '../../persons/entities/person.entity.js';
+import { PersonsService } from '../../persons/persons.service.js';
 
 import { CreateDoctorDto } from '../dto/create-doctor.dto.js';
 import { FilterDoctorDto } from '../dto/filter-doctor.dto.js';
@@ -45,6 +39,7 @@ export class DoctorsService {
     @InjectRepository(DoctorSpecialty)
     private readonly doctorSpecialtyRepository: Repository<DoctorSpecialty>,
     private readonly doctorSpecialtiesService: DoctorSpecialtiesService,
+    private readonly personsService: PersonsService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -98,13 +93,25 @@ export class DoctorsService {
     return { ...doctor, specialties: await this.listSpecialtyRows(id) };
   }
 
-  async create(dto: CreateDoctorDto): Promise<DoctorDetail> {
+  async create(
+    dto: CreateDoctorDto,
+    _profilePicture?: Express.Multer.File,
+  ): Promise<DoctorDetail> {
+    const { firstName, middleName, lastName, userId, phone } = dto;
+
     const doctor = await this.dataSource.transaction(async (manager) => {
-      await this.assertPersonIsUsable(dto.personId, undefined, manager);
+      const person = await this.personsService.createWithManager(manager, {
+        firstName,
+        middleName,
+        lastName,
+        userId,
+        phone,
+        personTypeId: PERSON_TYPE_ID.DOCTOR,
+      });
 
       const saved = await manager.save(
         manager.create(Doctor, {
-          personId: dto.personId,
+          personId: person.id,
           qualification: dto.qualification ?? null,
         }),
       );
@@ -123,70 +130,52 @@ export class DoctorsService {
     return this.findOne(doctor.id);
   }
 
-  async update(id: number, dto: UpdateDoctorDto): Promise<DoctorDetail> {
-    await this.findOne(id);
+  async update(
+    id: number,
+    dto: UpdateDoctorDto,
+    _profilePicture?: Express.Multer.File,
+  ): Promise<DoctorDetail> {
+    const { person } = await this.findOne(id);
+    const { firstName, middleName, lastName, userId, phone } = dto;
 
-    if (dto.personId !== undefined) {
-      await this.assertPersonIsUsable(dto.personId, id);
-    }
+    const personUpdate: QueryDeepPartialEntity<Person> = {};
+    if (firstName !== undefined) personUpdate.firstName = firstName;
+    if (middleName !== undefined) personUpdate.middleName = middleName;
+    if (lastName !== undefined) personUpdate.lastName = lastName;
+    if (userId !== undefined) personUpdate.userId = userId;
+    if (phone !== undefined) personUpdate.phone = phone;
 
-    const update: QueryDeepPartialEntity<Doctor> = {};
-    if (dto.personId !== undefined) update.personId = dto.personId;
+    const doctorUpdate: QueryDeepPartialEntity<Doctor> = {};
     if (dto.qualification !== undefined)
-      update.qualification = dto.qualification;
+      doctorUpdate.qualification = dto.qualification;
 
-    if (Object.keys(update).length > 0) {
-      await this.doctorRepository.update(id, update);
+    const hasPersonUpdate = Object.keys(personUpdate).length > 0;
+    const hasDoctorUpdate = Object.keys(doctorUpdate).length > 0;
+
+    if (hasPersonUpdate || hasDoctorUpdate) {
+      await this.dataSource.transaction(async (manager) => {
+        if (hasPersonUpdate) {
+          await manager.update(Person, person.id, personUpdate);
+        }
+        if (hasDoctorUpdate) {
+          await manager.update(Doctor, id, doctorUpdate);
+        }
+      });
     }
 
     return this.findOne(id);
   }
 
   async remove(id: number): Promise<void> {
-    await this.findOne(id);
+    const { person } = await this.findOne(id);
 
     await this.dataSource.transaction(async (manager) => {
       await manager.softDelete(DoctorSpecialty, { doctorId: id });
       await manager.softDelete(DoctorAvailability, { doctorId: id });
       await manager.softDelete(DoctorUnavailability, { doctorId: id });
       await manager.softDelete(Doctor, id);
+      await manager.softDelete(Person, person.id);
     });
-  }
-
-  private async assertPersonIsUsable(
-    personId: number,
-    excludeDoctorId?: number,
-    manager?: EntityManager,
-  ): Promise<void> {
-    const executor = manager ?? this.dataSource.manager;
-
-    const person = await executor.findOne(Person, { where: { id: personId } });
-    if (!person) {
-      throw new NotFoundException(`Person with id ${personId} not found`);
-    }
-
-    if (person.personTypeId !== PERSON_TYPE_ID.DOCTOR) {
-      throw new BadRequestException(
-        `La persona ${personId} no está registrada como doctor, su person_type_id debe ser ${PERSON_TYPE_ID.DOCTOR}.`,
-      );
-    }
-
-    const [doctor, patient] = await Promise.all([
-      executor.findOne(Doctor, { where: { personId }, withDeleted: true }),
-      executor.findOne(Patient, { where: { personId }, withDeleted: true }),
-    ]);
-
-    if (doctor && doctor.id !== excludeDoctorId) {
-      throw new ConflictException(
-        `La persona ${personId} ya está registrada como doctor.`,
-      );
-    }
-
-    if (patient) {
-      throw new ConflictException(
-        `La persona ${personId} ya está registrada como paciente.`,
-      );
-    }
   }
 
   private async listSpecialtyRows(
