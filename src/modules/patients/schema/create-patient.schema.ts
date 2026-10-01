@@ -1,4 +1,5 @@
 import { SchemaObject } from '@nestjs/swagger';
+import { GenderType } from '../../../common/enums/gender-type.enum.js';
 
 export const CreatePatientSwaggerSchema: SchemaObject = {
   type: 'object',
@@ -41,8 +42,8 @@ export const CreatePatientSwaggerSchema: SchemaObject = {
     },
     gender: {
       type: 'string',
-      enum: ['male', 'female', 'other'],
-      example: 'male',
+      enum: Object.values(GenderType),
+      example: GenderType.MALE,
       description: 'Biological gender or gender identity',
     },
     phone: {
