@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { plainToInstance, Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsInt,
   IsNotEmpty,
@@ -94,9 +95,9 @@ export class CreateDoctorDto {
   })
   qualification?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
-      'Specialties to attach in the same transaction. Optional, the doctor can be registered without specialties and they can be added later. multipart/form-data cannot carry a nested array, so send it as a JSON string (JSON.stringify). An empty list "[]" is treated as no specialties',
+      'Specialties to attach in the same transaction, at least one is required. multipart/form-data cannot carry a nested array, so send it as a JSON string (JSON.stringify)',
     example: '[{"specialtyId":3,"isPrimary":true}]',
   })
   @Transform(({ value }) => {
@@ -104,19 +105,19 @@ export class CreateDoctorDto {
     try {
       const parsed: unknown = JSON.parse(value);
       if (!Array.isArray(parsed)) return value;
-      if (parsed.length === 0) return undefined;
       return plainToInstance(CreateDoctorSpecialtyDto, parsed);
     } catch {
       return value;
     }
   })
-  @IsOptional()
   @IsArray({ message: 'El campo especialidades debe ser una lista.' })
+  @ArrayMinSize(1, {
+    message: 'Debe agregar al menos una especialidad.',
+  })
   @ArrayMaxSize(20, {
     message: 'No se pueden registrar más de 20 especialidades por doctor.',
   })
   @ValidateNested({ each: true })
   @Type(() => CreateDoctorSpecialtyDto)
-  @IsNotEmpty()
-  specialties?: CreateDoctorSpecialtyDto[];
+  specialties: CreateDoctorSpecialtyDto[];
 }
