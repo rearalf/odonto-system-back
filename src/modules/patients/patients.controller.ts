@@ -20,6 +20,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
+  ApiCreatedResponse,
   ApiOperation,
   ApiParam,
   ApiProduces,
@@ -88,7 +89,7 @@ export class PatientsController {
   @ApiOperation({
     summary: 'Create patient',
     description:
-      'Creates a person record and an associated patient record in a single database transaction. Person-related fields (firstName, lastName, etc.) are used to create the person entity, while the remaining fields populate the patient entity.',
+      'Creates a person record and an associated patient record in a single database transaction. Person-related fields (firstName, lastName, etc.) are used to create the person entity, while the remaining fields populate the patient entity. Returns the created patient in the same shape as GET /patients/{id}, including the nested person object and the grouped systemicReview block.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiProduces('application/json')
@@ -97,9 +98,10 @@ export class PatientsController {
       'Patient creation payload including binary avatar and clinical data',
     schema: CreatePatientSwaggerSchema,
   })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Patient and person records created successfully.',
+  @ApiCreatedResponse({
+    description:
+      'Patient and person records created successfully. Same shape as GET /patients/{id}.',
+    type: PatientResponseDto,
   })
   create(
     @Body() dto: CreatePatientDto,
@@ -122,7 +124,7 @@ export class PatientsController {
   @ApiOperation({
     summary: 'Update patient',
     description:
-      'Updates person and/or patient fields within a single transaction. Accepts multipart/form-data for optional profile picture upload.',
+      'Updates person and/or patient fields within a single transaction. Accepts multipart/form-data for optional profile picture upload. Returns the updated patient in the same shape as GET /patients/{id}, including the nested person object and the grouped systemicReview block.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiProduces('application/json')
