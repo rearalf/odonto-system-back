@@ -101,8 +101,6 @@ export class DoctorsService {
       };
     });
 
-    console.log(data[0].primarySpecialty);
-
     return {
       data,
       meta: PaginationHelper.buildMeta(total, filterDoctorDto),
