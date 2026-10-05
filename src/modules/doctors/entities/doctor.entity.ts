@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { Person } from '../../persons/entities/person.entity.js';
+import { DoctorSpecialty } from './doctor-specialty.entity.js';
 
 @Entity('doctor')
 export class Doctor extends BaseEntity {
@@ -44,4 +46,7 @@ export class Doctor extends BaseEntity {
     comment: 'Academic qualification or professional title of the doctor',
   })
   qualification: string | null;
+
+  @OneToMany(() => DoctorSpecialty, (ds) => ds.doctor)
+  doctorSpecialtys: DoctorSpecialty[];
 }
