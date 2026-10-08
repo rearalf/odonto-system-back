@@ -30,6 +30,7 @@ import { DoctorListItem } from '../dto/doctor-list-item.dto.js';
 
 export interface DoctorDetail extends Doctor {
   specialties: DoctorSpecialty[];
+  fullName: string;
 }
 
 @Injectable()
@@ -108,47 +109,26 @@ export class DoctorsService {
   }
 
   async findOne(id: number): Promise<DoctorDetail> {
-    const doctor = await this.doctorRepository.findOne({
-      where: {
-        id,
-        person: {
-          personType: {
-            id: PERSON_TYPE_ID.DOCTOR,
-          },
-        },
-      },
-      relations: { person: { personType: true } },
-      select: {
-        id: true,
-        qualification: true,
-        person: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          phone: true,
-          profilePictureUrl: true,
-          personType: false,
-        },
-        doctorSpecialtys: {
-          isPrimary: true,
-          id: true,
-          specialty: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-      },
-    });
-
-    console.log(doctor);
+    const doctor = await this.doctorRepository
+      .createQueryBuilder('doctor')
+      .leftJoinAndSelect('doctor.person', 'person')
+      .getOne();
 
     if (!doctor) {
       throw new NotFoundException(`Doctor with id ${id} not found`);
     }
 
-    return { ...doctor, specialties: await this.listSpecialtyRows(id) };
+    return {
+      ...doctor,
+      fullName: [
+        doctor.person.firstName,
+        doctor.person.middleName,
+        doctor.person.lastName,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      specialties: await this.listSpecialtyRows(id),
+    };
   }
 
   async create(
