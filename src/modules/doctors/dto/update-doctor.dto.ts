@@ -1,7 +1,5 @@
-import { OmitType, PartialType } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/swagger';
 
 import { CreateDoctorDto } from './create-doctor.dto.js';
 
-export class UpdateDoctorDto extends PartialType(
-  OmitType(CreateDoctorDto, ['specialties'] as const),
-) {}
+export class UpdateDoctorDto extends PartialType(CreateDoctorDto) {}

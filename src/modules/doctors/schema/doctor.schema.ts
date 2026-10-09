@@ -41,7 +41,7 @@ const doctorProperties: Record<string, SchemaObject | ReferenceObject> = {
     type: 'string',
     example: '[{"specialtyId":3,"isPrimary":true}]',
     description:
-      'Specialties to attach in the same transaction, as a JSON string because multipart/form-data cannot carry a nested array. Send "[]" or omit it for none. Max 20',
+      'Specialties, as a JSON string because multipart/form-data cannot carry a nested array. At least one is required and exactly one must have isPrimary: true (the last one wins if several are sent). On update, sending it replaces the whole set; omit it to leave the specialties untouched. Max 20',
   },
 };
 

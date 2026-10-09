@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
   EntityManager,
+  In,
   QueryDeepPartialEntity,
   Repository,
 } from 'typeorm';
@@ -145,7 +146,6 @@ export class DoctorSpecialtiesService {
     await this.doctorSpecialtyRepository.softDelete(current.id);
   }
 
-  // llamado por DoctorsService.create dentro de su transacción
   async createMany(
     doctorId: number,
     items: CreateDoctorSpecialtyDto[],
@@ -177,6 +177,75 @@ export class DoctorSpecialtiesService {
         }),
       ),
     );
+  }
+
+  async syncSpecialties(
+    doctorId: number,
+    items: CreateDoctorSpecialtyDto[],
+    manager: EntityManager,
+  ): Promise<void> {
+    const seen = new Set<number>();
+    for (const item of items) {
+      if (seen.has(item.specialtyId)) {
+        throw new BadRequestException(
+          `La especialidad ${item.specialtyId} viene repetida en la misma lista.`,
+        );
+      }
+      seen.add(item.specialtyId);
+    }
+
+    const primaryIndex = items.findLastIndex((item) => item.isPrimary === true);
+    if (primaryIndex === -1) {
+      throw new BadRequestException(
+        'Debe marcar una especialidad como principal.',
+      );
+    }
+
+    await this.assertSpecialtiesExist([...seen], manager);
+
+    const currentActive = await manager.find(DoctorSpecialty, {
+      where: { doctorId },
+    });
+    const activeBySpecialtyId = new Map(
+      currentActive.map((row) => [row.specialtyId, row]),
+    );
+
+    for (const row of currentActive) {
+      if (!seen.has(row.specialtyId)) {
+        await manager.softDelete(DoctorSpecialty, row.id);
+      }
+    }
+
+    for (const [index, item] of items.entries()) {
+      const isPrimary = index === primaryIndex;
+      const activeRow = activeBySpecialtyId.get(item.specialtyId);
+
+      if (activeRow) {
+        await manager.update(DoctorSpecialty, activeRow.id, { isPrimary });
+        continue;
+      }
+
+      const deletedRow = await manager.findOne(DoctorSpecialty, {
+        where: { doctorId, specialtyId: item.specialtyId },
+        withDeleted: true,
+      });
+
+      if (deletedRow) {
+        await manager.update(DoctorSpecialty, deletedRow.id, {
+          deletedAt: null,
+          isPrimary,
+        });
+        continue;
+      }
+
+      await manager.save(
+        manager.create(DoctorSpecialty, {
+          doctorId,
+          specialtyId: item.specialtyId,
+          isPrimary,
+        }),
+      );
+    }
   }
 
   private async assertDoctorExists(doctorId: number): Promise<void> {
@@ -211,6 +280,25 @@ export class DoctorSpecialtiesService {
       throw new ConflictException(
         `La especialidad ${specialtyId} ya está registrada para este doctor.`,
       );
+    }
+  }
+
+  private async assertSpecialtiesExist(
+    specialtyIds: number[],
+    manager: EntityManager,
+  ): Promise<void> {
+    const found = await manager.find(Specialty, {
+      where: { id: In(specialtyIds) },
+      select: { id: true },
+    });
+    const foundIds = new Set(found.map((specialty) => specialty.id));
+
+    for (const specialtyId of specialtyIds) {
+      if (!foundIds.has(specialtyId)) {
+        throw new NotFoundException(
+          `Specialty with id ${specialtyId} not found`,
+        );
+      }
     }
   }
 

@@ -189,14 +189,23 @@ export class DoctorsService {
 
     const hasPersonUpdate = Object.keys(personUpdate).length > 0;
     const hasDoctorUpdate = Object.keys(doctorUpdate).length > 0;
+    const specialties = dto.specialties;
+    const hasSpecialties = specialties !== undefined;
 
-    if (hasPersonUpdate || hasDoctorUpdate) {
+    if (hasPersonUpdate || hasDoctorUpdate || hasSpecialties) {
       await this.dataSource.transaction(async (manager) => {
         if (hasPersonUpdate) {
           await manager.update(Person, person.id, personUpdate);
         }
         if (hasDoctorUpdate) {
           await manager.update(Doctor, id, doctorUpdate);
+        }
+        if (hasSpecialties) {
+          await this.doctorSpecialtiesService.syncSpecialties(
+            id,
+            specialties,
+            manager,
+          );
         }
       });
     }

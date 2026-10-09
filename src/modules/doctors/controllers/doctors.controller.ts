@@ -124,7 +124,7 @@ export class DoctorsController {
   @ApiOperation({
     summary: 'Update doctor',
     description:
-      'Updates the person fields and/or the qualification of the doctor within a single transaction. Specialties are not touched here, they have their own endpoints under /doctors/:id/specialties. Accepts multipart/form-data.',
+      'Updates the person fields, the qualification and/or the specialties of the doctor within a single transaction. When specialties is sent it replaces the whole set (at least one, exactly one marked as primary); omit it to leave them untouched. Accepts multipart/form-data.',
   })
   @ApiParam({
     name: 'id',
