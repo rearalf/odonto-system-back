@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum.js';
 import { Doctor } from './doctor.entity.js';
@@ -12,11 +13,11 @@ export class DoctorAvailability extends BaseEntity {
   })
   @ManyToOne(() => Doctor, {
     nullable: false,
-    onDelete: 'NO ACTION',
+    onDelete: 'CASCADE',
     onUpdate: 'NO ACTION',
   })
   @JoinColumn({ name: 'doctor_id' })
-  doctor: Doctor;
+  doctor: Relation<Doctor>;
 
   @ApiProperty({
     description: 'Foreign key referencing the doctor',
