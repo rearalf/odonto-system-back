@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { Specialty } from '../../specialties/entities/specialty.entity.js';
 import { Doctor } from './doctor.entity.js';
+import type { Doctor as DoctorType } from './doctor.entity.js';
 
 @Entity('doctor_specialty')
 export class DoctorSpecialty extends BaseEntity {
@@ -16,7 +18,7 @@ export class DoctorSpecialty extends BaseEntity {
     onUpdate: 'NO ACTION',
   })
   @JoinColumn({ name: 'doctor_id' })
-  doctor: Doctor;
+  doctor: DoctorType;
 
   @ApiProperty({
     description: 'Foreign key referencing the doctor',

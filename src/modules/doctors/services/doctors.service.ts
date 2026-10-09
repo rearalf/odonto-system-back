@@ -26,9 +26,11 @@ import {
   PaginationMeta,
 } from '../../../common/helpers/pagination-helper.js';
 import { unaccent } from '../../../common/utils/unaccent.js';
+import { DoctorListItem } from '../dto/doctor-list-item.dto.js';
 
 export interface DoctorDetail extends Doctor {
   specialties: DoctorSpecialty[];
+  fullName: string;
 }
 
 @Injectable()
@@ -45,10 +47,12 @@ export class DoctorsService {
 
   async findAll(
     filterDoctorDto: FilterDoctorDto,
-  ): Promise<{ data: Doctor[]; meta: PaginationMeta | null }> {
+  ): Promise<{ data: DoctorListItem[]; meta: PaginationMeta | null }> {
     const selectQuery = this.doctorRepository
       .createQueryBuilder('doctor')
-      .leftJoinAndSelect('doctor.person', 'person');
+      .leftJoinAndSelect('doctor.person', 'person')
+      .leftJoinAndSelect('doctor.doctorSpecialtys', 'doctorSpecialty')
+      .leftJoinAndSelect('doctorSpecialty.specialty', 'specialty');
 
     if (filterDoctorDto.search?.trim()) {
       const search = `%${unaccent(filterDoctorDto.search.trim())}%`;
@@ -69,10 +73,34 @@ export class DoctorsService {
       );
     }
 
-    const [data, total] = await selectQuery
+    const [doctors, total] = await selectQuery
       .orderBy('person.lastName', 'ASC')
       .addOrderBy('person.firstName', 'ASC')
       .getManyAndCount();
+
+    const data = doctors.map((doctor) => {
+      const person = doctor.person;
+
+      const fullName = [person.firstName, person.middleName, person.lastName]
+        .filter(Boolean)
+        .join(' ');
+
+      const specialtyCount = doctor.doctorSpecialtys.filter(
+        (ds) => !ds.isPrimary,
+      );
+
+      return {
+        id: doctor.id,
+        fullName,
+        phone: person.phone || null,
+        avatarUrl: person.profilePictureUrl,
+        primarySpecialty:
+          doctor.doctorSpecialtys.find((main) => main.isPrimary)?.specialty
+            .name || null,
+        specialtyCount: specialtyCount.length,
+        qualification: doctor.qualification,
+      };
+    });
 
     return {
       data,
@@ -81,16 +109,26 @@ export class DoctorsService {
   }
 
   async findOne(id: number): Promise<DoctorDetail> {
-    const doctor = await this.doctorRepository.findOne({
-      where: { id },
-      relations: { person: { personType: true } },
-    });
+    const doctor = await this.doctorRepository
+      .createQueryBuilder('doctor')
+      .leftJoinAndSelect('doctor.person', 'person')
+      .getOne();
 
     if (!doctor) {
       throw new NotFoundException(`Doctor with id ${id} not found`);
     }
 
-    return { ...doctor, specialties: await this.listSpecialtyRows(id) };
+    return {
+      ...doctor,
+      fullName: [
+        doctor.person.firstName,
+        doctor.person.middleName,
+        doctor.person.lastName,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      specialties: await this.listSpecialtyRows(id),
+    };
   }
 
   async create(

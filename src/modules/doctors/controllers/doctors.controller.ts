@@ -40,6 +40,7 @@ import {
 } from '../schema/doctor.schema.js';
 
 import { PaginationHeadersInterceptor } from '../../../common/interceptors/pagination-headers.interceptor.js';
+import { DoctorListItem } from '../dto/doctor-list-item.dto.js';
 
 @ApiTags('doctors')
 @Controller('doctors')
@@ -49,13 +50,15 @@ export class DoctorsController {
   @Get()
   @UseInterceptors(PaginationHeadersInterceptor)
   @ApiOperation({
-    summary: 'List all doctors',
+    summary: 'Retrieve all doctors with their specialties',
     description:
-      'Returns the active doctors with their person record, sorted by last name. Optionally filtered by the first, middle or last name, ignoring case and accents. Soft-deleted records are excluded.',
+      'Returns a list of all doctors with their academic qualifications and associated specialties',
   })
   @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'List of doctors returned successfully.',
+    status: 200,
+    description: 'List of doctors retrieved successfully',
+    type: DoctorListItem,
+    isArray: true,
   })
   findAll(@Query() filterDoctorDto: FilterDoctorDto) {
     return this.doctorsService.findAll(filterDoctorDto);

@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Column, Entity, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { Person } from '../../persons/entities/person.entity.js';
+import { DoctorSpecialty } from './doctor-specialty.entity.js';
 import { DoctorAvailability } from './doctor-availability.entity.js';
 import { DoctorUnavailability } from './doctor-unavailability.entity.js';
 
@@ -47,8 +49,12 @@ export class Doctor extends BaseEntity {
   })
   qualification: string | null;
 
+  @OneToMany(() => DoctorSpecialty, (ds) => ds.doctor)
+  doctorSpecialtys: DoctorSpecialty[];
+
   @ApiProperty({
-    description: 'Weekly or date-specific availability blocks defined for this doctor',
+    description:
+      'Weekly or date-specific availability blocks defined for this doctor',
     type: () => [DoctorAvailability],
   })
   @OneToMany(() => DoctorAvailability, (availability) => availability.doctor)
