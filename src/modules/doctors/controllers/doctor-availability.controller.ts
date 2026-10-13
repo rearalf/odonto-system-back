@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -21,10 +22,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { AvailableSlotsDto } from '../dto/available-slots.dto.js';
-import { CreateDoctorAvailabilityDto } from '../dto/create-doctor-availability.dto.js';
 import { DoctorAvailabilityService } from '../services/doctor-availability.service.js';
+import { AvailableSlotsDto } from '../dto/available-slots.dto.js';
+import { BulkDoctorAvailabilityDto } from '../dto/bulk-doctor-availability.dto.js';
+import { CreateDoctorAvailabilityDto } from '../dto/create-doctor-availability.dto.js';
 import { DoctorAvailability } from '../entities/doctor-availability.entity.js';
+import { DoctorSlotResponseDto } from '../dto/slot-response.dto.js';
+import { QueryDoctorSlotsDto } from '../dto/query-doctor-slots.dto.js';
 import { UpdateDoctorAvailabilityDto } from '../dto/update-doctor-availability.dto.js';
 
 @ApiTags('doctor-availability')
@@ -34,38 +38,11 @@ export class DoctorAvailabilityController {
     private readonly doctorAvailabilityService: DoctorAvailabilityService,
   ) {}
 
-  @Get('available-slots')
-  @ApiOperation({
-    summary: 'Get the free slots of a doctor for a given date',
-    description:
-      'Computes the bookable slots of the given date from the availability blocks that apply to it: the recurring blocks whose day_of_week matches plus the blocks tied to that exact specific_date. Slots already elapsed and slots covered by an unavailability are omitted. Past dates are rejected.',
-  })
-  @ApiParam({
-    name: 'doctorId',
-    description: 'Unique identifier of the doctor',
-    example: 1,
-  })
-  @ApiOkResponse({
-    description: 'Free slots of the requested date.',
-  })
-  @ApiNotFoundResponse({
-    description: 'Doctor with the given ID does not exist.',
-  })
-  @ApiBadRequestResponse({
-    description: 'The date is malformed or belongs to the past.',
-  })
-  availableSlots(
-    @Param('doctorId', ParseIntPipe) doctorId: number,
-    @Query() dto: AvailableSlotsDto,
-  ) {
-    return this.doctorAvailabilityService.availableSlots(doctorId, dto);
-  }
-
   @Get('availability')
   @ApiOperation({
     summary: 'List the availability blocks of a doctor',
     description:
-      'Returns every active availability block of the doctor, recurring blocks and date specific blocks, without pagination.',
+      'Returns every active availability block of the doctor, recurring blocks and date specific blocks, without pagination. Optionally filter by isRecurring=true/false.',
   })
   @ApiParam({
     name: 'doctorId',
@@ -76,8 +53,14 @@ export class DoctorAvailabilityController {
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
-  findAvailability(@Param('doctorId', ParseIntPipe) doctorId: number) {
-    return this.doctorAvailabilityService.findAvailability(doctorId);
+  findAvailability(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query('isRecurring') isRecurring?: string,
+  ) {
+    return this.doctorAvailabilityService.findAvailability(
+      doctorId,
+      isRecurring === undefined ? undefined : isRecurring === 'true',
+    );
   }
 
   @Post('availability')
@@ -108,6 +91,51 @@ export class DoctorAvailabilityController {
     @Body() dto: CreateDoctorAvailabilityDto,
   ) {
     return this.doctorAvailabilityService.addAvailability(doctorId, dto);
+  }
+
+  @Put('availability/bulk')
+  @ApiOperation({
+    summary: 'Synchronize the whole weekly availability template of a doctor',
+    description:
+      'Receives the complete list of availability blocks. Validates in memory that the incoming blocks do not overlap each other, opens a transaction, soft-deletes the previous recurring template of the doctor and inserts the new template at once.',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    description: 'Unique identifier of the doctor',
+    example: 1,
+  })
+  @ApiBody({ type: BulkDoctorAvailabilityDto })
+  @ApiOkResponse({
+    description:
+      'Previous recurring template that was replaced and the current template that was inserted.',
+    schema: {
+      properties: {
+        previous: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/DoctorAvailability' },
+        },
+        current: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/DoctorAvailability' },
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Doctor with the given ID does not exist.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'The incoming blocks overlap each other or one of them is malformed.',
+  })
+  bulkSyncAvailability(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Body() dto: BulkDoctorAvailabilityDto,
+  ): Promise<{
+    previous: DoctorAvailability[];
+    current: DoctorAvailability[];
+  }> {
+    return this.doctorAvailabilityService.bulkSyncAvailability(doctorId, dto);
   }
 
   @Patch('availability/:availabilityId')
@@ -173,5 +201,61 @@ export class DoctorAvailabilityController {
       doctorId,
       availabilityId,
     );
+  }
+
+  @Get('available-slots')
+  @ApiOperation({
+    summary: 'Get the free slots of a doctor for a given date',
+    description:
+      'Computes the bookable slots of the given date from the availability blocks that apply to it: the recurring blocks whose day_of_week matches plus the blocks tied to that exact specific_date. Slots already elapsed and slots covered by an unavailability are omitted. Past dates are rejected.',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    description: 'Unique identifier of the doctor',
+    example: 1,
+  })
+  @ApiOkResponse({
+    description: 'Free slots of the requested date.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Doctor with the given ID does not exist.',
+  })
+  @ApiBadRequestResponse({
+    description: 'The date is malformed or belongs to the past.',
+  })
+  availableSlots(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query() dto: AvailableSlotsDto,
+  ) {
+    return this.doctorAvailabilityService.availableSlots(doctorId, dto);
+  }
+
+  @Get('slots')
+  @ApiOperation({
+    summary:
+      'Slot engine: bookable slots of a doctor for a given date with capacity',
+    description:
+      'Computes in real time the slots of the given date: recurring blocks whose day_of_week matches plus blocks tied to that exact specific_date. Slots that collide with an unavailability are dropped and each slot reports its capacity (maxPatientsPerSlot), how many spots are taken by active appointments and how many remain free. Past dates are rejected.',
+  })
+  @ApiParam({
+    name: 'doctorId',
+    description: 'Unique identifier of the doctor',
+    example: 1,
+  })
+  @ApiOkResponse({
+    description: 'Slots of the requested date with their free capacity.',
+    type: [DoctorSlotResponseDto],
+  })
+  @ApiNotFoundResponse({
+    description: 'Doctor with the given ID does not exist.',
+  })
+  @ApiBadRequestResponse({
+    description: 'The date is malformed or belongs to the past.',
+  })
+  slots(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query() dto: QueryDoctorSlotsDto,
+  ) {
+    return this.doctorAvailabilityService.slots(doctorId, dto);
   }
 }

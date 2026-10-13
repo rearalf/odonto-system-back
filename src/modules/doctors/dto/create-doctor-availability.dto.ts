@@ -1,99 +1,97 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsDateString,
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
-
-import { TransformBoolean } from '../../../common/dto/transform-boolean.js';
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum.js';
-
-const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 export class CreateDoctorAvailabilityDto {
   @ApiProperty({
-    description:
-      'Start of the attention block. Accepts HH:MM or HH:MM:SS and is always stored and returned as HH:MM:SS',
-    example: '08:00',
+    description: 'Start time of the schedule block in 24h format (HH:MM:SS)',
+    example: '08:00:00',
   })
-  @IsString({ message: 'El campo hora de inicio debe ser texto.' })
-  @Matches(TIME_REGEX, {
-    message: 'El campo hora de inicio debe tener el formato HH:MM o HH:MM:SS.',
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'startTime must be a valid time in HH:MM:SS format',
   })
   startTime: string;
 
   @ApiProperty({
-    description:
-      'End of the attention block. Must be greater than the start time',
-    example: '13:00',
+    description: 'End time of the schedule block in 24h format (HH:MM:SS)',
+    example: '12:00:00',
   })
-  @IsString({ message: 'El campo hora de fin debe ser texto.' })
-  @Matches(TIME_REGEX, {
-    message: 'El campo hora de fin debe tener el formato HH:MM o HH:MM:SS.',
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'endTime must be a valid time in HH:MM:SS format',
   })
   endTime: string;
 
   @ApiPropertyOptional({
-    description: 'Length in minutes of each bookable slot inside the block',
+    description: 'Duration in minutes of each appointment slot',
     example: 30,
     default: 30,
+    minimum: 5,
+    maximum: 240,
   })
-  @Type(() => Number)
   @IsOptional()
-  @IsInt({
-    message: 'El campo duración del turno debe ser un número entero.',
-  })
-  @Min(1, { message: 'La duración del turno debe ser mayor que 0 minutos.' })
-  @Max(1440, {
-    message: 'La duración del turno no puede superar los 1440 minutos.',
-  })
-  slotDuration?: number;
+  @IsInt()
+  @Min(5)
+  @Max(240)
+  slotDuration?: number = 30;
 
   @ApiPropertyOptional({
+    description: 'Maximum number of patients allowed per single slot',
+    example: 1,
+    default: 1,
+    minimum: 1,
+    maximum: 20,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  maxPatientsPerSlot?: number = 1;
+
+  @ApiProperty({
     description:
-      'When true the block repeats weekly and dayOfWeek is required. When false the block applies only to specificDate',
+      'True if the schedule repeats every week; false for a single specific date',
     example: true,
     default: true,
   })
-  @TransformBoolean()
-  @IsOptional()
-  @IsBoolean({
-    message: 'El campo recurrente debe ser un valor booleano.',
-  })
-  isRecurring?: boolean;
+  @IsNotEmpty()
+  @IsBoolean()
+  isRecurring: boolean;
 
   @ApiPropertyOptional({
     description:
-      'Day of the week the block applies to. Required when isRecurring is true and forbidden otherwise',
+      'Day of the week (0 = Sunday ... 6 = Saturday). Required when isRecurring is true',
     enum: DayOfWeek,
     example: DayOfWeek.MONDAY,
   })
-  @IsOptional()
-  @IsEnum(DayOfWeek, {
-    message: 'El campo día de la semana debe ser un valor entre 0 y 6.',
-  })
-  @Transform(({ value }) =>
-    typeof value === 'string' && value !== '' ? Number(value) : value,
-  )
+  @ValidateIf((o: CreateDoctorAvailabilityDto) => o.isRecurring === true)
+  @IsNotEmpty({ message: 'dayOfWeek is required when isRecurring is true' })
+  @IsEnum(DayOfWeek)
   dayOfWeek?: DayOfWeek;
 
   @ApiPropertyOptional({
     description:
-      'Exact date the block applies to (YYYY-MM-DD). Required when isRecurring is false and forbidden otherwise',
-    example: '2026-10-15',
+      'Specific date (YYYY-MM-DD). Required when isRecurring is false',
+    example: '2026-10-25',
   })
-  @IsOptional()
-  @IsString({ message: 'El campo fecha debe ser una cadena de texto.' })
-  @IsDateString(
-    {},
-    { message: 'El campo fecha debe tener el formato YYYY-MM-DD.' },
-  )
+  @ValidateIf((o: CreateDoctorAvailabilityDto) => o.isRecurring === false)
+  @IsNotEmpty({ message: 'specificDate is required when isRecurring is false' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'specificDate must be in YYYY-MM-DD format',
+  })
   specificDate?: string;
 }
