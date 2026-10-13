@@ -112,6 +112,7 @@ export class DoctorsService {
     const doctor = await this.doctorRepository
       .createQueryBuilder('doctor')
       .leftJoinAndSelect('doctor.person', 'person')
+      .where('doctor.id = :id', { id })
       .getOne();
 
     if (!doctor) {
