@@ -108,6 +108,17 @@ export class DoctorsService {
     };
   }
 
+  async assertDoctorExists(id: number): Promise<void> {
+    const exists = await this.doctorRepository
+      .createQueryBuilder('doctor')
+      .where('doctor.id = :id', { id })
+      .getExists();
+
+    if (!exists) {
+      throw new NotFoundException(`Doctor with id ${id} not found`);
+    }
+  }
+
   async findOne(id: number): Promise<DoctorDetail> {
     const doctor = await this.doctorRepository
       .createQueryBuilder('doctor')
