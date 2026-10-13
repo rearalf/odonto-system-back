@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -20,9 +21,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { DoctorUnavailabilityService } from '../services/doctor-unavailability.service.js';
 import { CreateDoctorUnavailabilityDto } from '../dto/create-doctor-unavailability.dto.js';
 import { DoctorUnavailability } from '../entities/doctor-unavailability.entity.js';
-import { DoctorUnavailabilityService } from '../services/doctor-unavailability.service.js';
 import { UpdateDoctorUnavailabilityDto } from '../dto/update-doctor-unavailability.dto.js';
 
 @ApiTags('doctor-unavailability')
@@ -36,7 +37,7 @@ export class DoctorUnavailabilityController {
   @ApiOperation({
     summary: 'List the unavailability blocks of a doctor',
     description:
-      'Returns every active unavailability block of the doctor sorted by start instant, without pagination.',
+      'Returns every active unavailability block of the doctor sorted by start instant, without pagination. Optionally filters by a date range with from and to (YYYY-MM-DD).',
   })
   @ApiParam({
     name: 'doctorId',
@@ -47,8 +48,19 @@ export class DoctorUnavailabilityController {
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
-  findUnavailability(@Param('doctorId', ParseIntPipe) doctorId: number) {
-    return this.doctorUnavailabilityService.findUnavailability(doctorId);
+  @ApiBadRequestResponse({
+    description: 'from or to is malformed or from comes after to.',
+  })
+  findUnavailability(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.doctorUnavailabilityService.findUnavailability(
+      doctorId,
+      from,
+      to,
+    );
   }
 
   @Post()

@@ -5,10 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { DoctorUnavailability } from '../entities/doctor-unavailability.entity.js';
-import { Doctor } from '../entities/doctor.entity.js';
+import { DoctorsService } from './doctors.service.js';
 
 import { CreateDoctorUnavailabilityDto } from '../dto/create-doctor-unavailability.dto.js';
 import { UpdateDoctorUnavailabilityDto } from '../dto/update-doctor-unavailability.dto.js';
@@ -24,30 +24,62 @@ export class DoctorUnavailabilityService {
   constructor(
     @InjectRepository(DoctorUnavailability)
     private readonly doctorUnavailabilityRepository: Repository<DoctorUnavailability>,
-    @InjectRepository(Doctor)
-    private readonly doctorRepository: Repository<Doctor>,
+    private readonly dataSource: DataSource,
+    private readonly doctorsService: DoctorsService,
   ) {}
 
-  async findUnavailability(doctorId: number): Promise<DoctorUnavailability[]> {
-    await this.assertDoctorExists(doctorId);
-    return this.doctorUnavailabilityRepository.find({
-      where: { doctorId },
-      order: { startTime: 'ASC' },
-    });
+  async findUnavailability(
+    doctorId: number,
+    from?: string,
+    to?: string,
+  ): Promise<DoctorUnavailability[]> {
+    await this.doctorsService.assertDoctorExists(doctorId);
+
+    const query = this.doctorUnavailabilityRepository
+      .createQueryBuilder('unavailability')
+      .where('unavailability.doctorId = :doctorId', { doctorId });
+
+    if (from) {
+      query.andWhere('unavailability.endTime >= :from', {
+        from: new Date(`${from}T00:00:00.000Z`),
+      });
+    }
+
+    if (to) {
+      query.andWhere('unavailability.startTime <= :to', {
+        to: new Date(`${to}T23:59:59.999Z`),
+      });
+    }
+
+    if (from && to && from > to) {
+      throw new BadRequestException(
+        'El parámetro from no puede ser posterior a to.',
+      );
+    }
+
+    return query.addOrderBy('unavailability.startTime', 'ASC').getMany();
   }
 
   async addUnavailability(
     doctorId: number,
     dto: CreateDoctorUnavailabilityDto,
   ): Promise<DoctorUnavailability> {
-    await this.assertDoctorExists(doctorId);
+    await this.doctorsService.assertDoctorExists(doctorId);
 
     const payload = this.buildUnavailabilityPayload(dto);
-    await this.assertUnavailabilityIsFree(doctorId, payload);
 
-    return this.doctorUnavailabilityRepository.save(
-      this.doctorUnavailabilityRepository.create({ doctorId, ...payload }),
-    );
+    return this.dataSource.transaction(async (manager) => {
+      await this.assertUnavailabilityIsFree(manager, doctorId, payload);
+
+      // Cuando exista la entidad `appointment`, mover aquí dentro de la misma
+      // transacción las citas activas (scheduled/confirmed) que choquen con el rango
+      // [startTime, endTime] a estado `rescheduled` con modified_at = NOW() y
+      // modification_reason = 'Ausencia médica registrada: ' + dto.reason.
+
+      return manager.save(
+        manager.create(DoctorUnavailability, { doctorId, ...payload }),
+      );
+    });
   }
 
   async updateUnavailability(
@@ -55,47 +87,61 @@ export class DoctorUnavailabilityService {
     id: number,
     dto: UpdateDoctorUnavailabilityDto,
   ): Promise<DoctorUnavailability> {
-    const current = await this.findUnavailabilityRow(doctorId, id);
+    const current = await this.doctorUnavailabilityRepository
+      .createQueryBuilder('unavailability')
+      .where('unavailability.id = :id', { id })
+      .andWhere('unavailability.doctorId = :doctorId', { doctorId })
+      .getOne();
 
-    const payload = this.buildUnavailabilityPayload(dto, current);
-    await this.assertUnavailabilityIsFree(doctorId, payload, current.id);
+    if (!current) {
+      throw new NotFoundException(
+        'La indisponibilidad no está registrada para el médico.',
+      );
+    }
 
-    await this.doctorUnavailabilityRepository.update(current.id, payload);
-    return this.doctorUnavailabilityRepository.findOneOrFail({
-      where: { id: current.id },
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(DoctorUnavailability);
+
+      const payload = this.buildUnavailabilityPayload(dto, current);
+      await this.assertUnavailabilityIsFree(
+        manager,
+        doctorId,
+        payload,
+        current.id,
+      );
+
+      // Si el rango se expande, re-verificar aquí las citas afectadas
+      // (como en addUnavailability) para pasarlas a rescheduled.
+
+      await manager
+        .createQueryBuilder()
+        .update(DoctorUnavailability)
+        .set(payload)
+        .where('id = :id', { id })
+        .execute();
+
+      return repo
+        .createQueryBuilder('unavailability')
+        .where('unavailability.id = :id', { id })
+        .getOneOrFail();
     });
   }
 
   async removeUnavailability(doctorId: number, id: number): Promise<void> {
-    const current = await this.findUnavailabilityRow(doctorId, id);
-    await this.doctorUnavailabilityRepository.softDelete(current.id);
-  }
+    const isExist = await this.doctorUnavailabilityRepository
+      .createQueryBuilder('unavailability')
+      .where('unavailability.id = :id', { id })
+      .andWhere('unavailability.doctorId = :doctorId', { doctorId })
+      .getOne();
 
-  private async assertDoctorExists(doctorId: number): Promise<void> {
-    const exists = await this.doctorRepository.exist({
-      where: { id: doctorId },
-    });
-
-    if (!exists) {
-      throw new NotFoundException(`Doctor with id ${doctorId} not found`);
-    }
-  }
-
-  private async findUnavailabilityRow(
-    doctorId: number,
-    id: number,
-  ): Promise<DoctorUnavailability> {
-    const row = await this.doctorUnavailabilityRepository.findOne({
-      where: { id, doctorId },
-    });
-
-    if (!row) {
+    if (!isExist)
       throw new NotFoundException(
-        `Unavailability ${id} is not registered for doctor ${doctorId}`,
+        'La indisponibilidad no está registrada para el médico.',
       );
-    }
 
-    return row;
+    return this.dataSource.transaction(async (manager) => {
+      await manager.softDelete(DoctorUnavailability, { id: isExist.id });
+    });
   }
 
   private buildUnavailabilityPayload(
@@ -128,13 +174,16 @@ export class DoctorUnavailabilityService {
   }
 
   private async assertUnavailabilityIsFree(
+    manager: EntityManager,
     doctorId: number,
     payload: UnavailabilityPayload,
     excludeId?: number,
   ): Promise<void> {
-    const rows = await this.doctorUnavailabilityRepository.find({
-      where: { doctorId },
-    });
+    const rows = await manager
+      .getRepository(DoctorUnavailability)
+      .createQueryBuilder('unavailability')
+      .where('unavailability.doctorId = :doctorId', { doctorId })
+      .getMany();
 
     const conflict = rows.some(
       (row) =>
