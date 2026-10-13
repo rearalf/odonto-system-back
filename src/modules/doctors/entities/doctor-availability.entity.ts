@@ -71,6 +71,21 @@ export class DoctorAvailability extends BaseEntity {
 
   @ApiProperty({
     description:
+      'Maximum number of patients that can be booked in a single slot',
+    example: 1,
+    default: 1,
+  })
+  @Column({
+    name: 'max_patients_per_slot',
+    type: 'int',
+    nullable: false,
+    default: 1,
+    comment: 'Maximum concurrent appointments allowed per time slot',
+  })
+  maxPatientsPerSlot: number;
+
+  @ApiProperty({
+    description:
       'Indicates whether the block repeats every week (using day_of_week) or applies only to a specific date',
     example: true,
     default: true,
