@@ -26,7 +26,7 @@ import { DoctorAvailabilityService } from '../services/doctor-availability.servi
 import { AvailableSlotsDto } from '../dto/available-slots.dto.js';
 import { BulkDoctorAvailabilityDto } from '../dto/bulk-doctor-availability.dto.js';
 import { CreateDoctorAvailabilityDto } from '../dto/create-doctor-availability.dto.js';
-import { DoctorAvailability } from '../entities/doctor-availability.entity.js';
+import { DoctorAvailabilityResponseDto } from '../dto/doctor-availability-response.dto.js';
 import { DoctorSlotResponseDto } from '../dto/slot-response.dto.js';
 import { QueryDoctorSlotsDto } from '../dto/query-doctor-slots.dto.js';
 import { UpdateDoctorAvailabilityDto } from '../dto/update-doctor-availability.dto.js';
@@ -49,7 +49,7 @@ export class DoctorAvailabilityController {
     description: 'Unique identifier of the doctor',
     example: 1,
   })
-  @ApiOkResponse({ type: [DoctorAvailability] })
+  @ApiOkResponse({ type: [DoctorAvailabilityResponseDto] })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
@@ -75,7 +75,7 @@ export class DoctorAvailabilityController {
     example: 1,
   })
   @ApiBody({ type: CreateDoctorAvailabilityDto })
-  @ApiCreatedResponse({ type: DoctorAvailability })
+  @ApiCreatedResponse({ type: DoctorAvailabilityResponseDto })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
@@ -112,11 +112,11 @@ export class DoctorAvailabilityController {
       properties: {
         previous: {
           type: 'array',
-          items: { $ref: '#/components/schemas/DoctorAvailability' },
+          items: { $ref: '#/components/schemas/DoctorAvailabilityResponseDto' },
         },
         current: {
           type: 'array',
-          items: { $ref: '#/components/schemas/DoctorAvailability' },
+          items: { $ref: '#/components/schemas/DoctorAvailabilityResponseDto' },
         },
       },
     },
@@ -132,8 +132,8 @@ export class DoctorAvailabilityController {
     @Param('doctorId', ParseIntPipe) doctorId: number,
     @Body() dto: BulkDoctorAvailabilityDto,
   ): Promise<{
-    previous: DoctorAvailability[];
-    current: DoctorAvailability[];
+    previous: DoctorAvailabilityResponseDto[];
+    current: DoctorAvailabilityResponseDto[];
   }> {
     return this.doctorAvailabilityService.bulkSyncAvailability(doctorId, dto);
   }
@@ -155,7 +155,7 @@ export class DoctorAvailabilityController {
     example: 1,
   })
   @ApiBody({ type: UpdateDoctorAvailabilityDto })
-  @ApiOkResponse({ type: DoctorAvailability })
+  @ApiOkResponse({ type: DoctorAvailabilityResponseDto })
   @ApiNotFoundResponse({
     description: 'The row is not registered for this doctor.',
   })
@@ -189,7 +189,10 @@ export class DoctorAvailabilityController {
     description: 'Identifier of the doctor_availability row',
     example: 1,
   })
-  @ApiOkResponse({ description: 'Availability block deleted successfully.' })
+  @ApiOkResponse({
+    type: DoctorAvailabilityResponseDto,
+    description: 'Availability block deleted successfully.',
+  })
   @ApiNotFoundResponse({
     description: 'The row is not registered for this doctor.',
   })

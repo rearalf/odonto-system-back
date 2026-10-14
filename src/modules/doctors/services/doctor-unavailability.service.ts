@@ -11,6 +11,7 @@ import { DoctorUnavailability } from '../entities/doctor-unavailability.entity.j
 import { DoctorsService } from './doctors.service.js';
 
 import { CreateDoctorUnavailabilityDto } from '../dto/create-doctor-unavailability.dto.js';
+import { DoctorUnavailabilityResponseDto } from '../dto/doctor-unavailability-response.dto.js';
 import { UpdateDoctorUnavailabilityDto } from '../dto/update-doctor-unavailability.dto.js';
 
 interface UnavailabilityPayload {
@@ -18,6 +19,14 @@ interface UnavailabilityPayload {
   endTime: Date;
   reason: string | null;
 }
+
+const UNAVAILABILITY_COLUMNS = [
+  'unavailability.id',
+  'unavailability.doctorId',
+  'unavailability.startTime',
+  'unavailability.endTime',
+  'unavailability.reason',
+];
 
 @Injectable()
 export class DoctorUnavailabilityService {
@@ -32,11 +41,12 @@ export class DoctorUnavailabilityService {
     doctorId: number,
     from?: string,
     to?: string,
-  ): Promise<DoctorUnavailability[]> {
+  ): Promise<DoctorUnavailabilityResponseDto[]> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
     const query = this.doctorUnavailabilityRepository
       .createQueryBuilder('unavailability')
+      .select(UNAVAILABILITY_COLUMNS)
       .where('unavailability.doctorId = :doctorId', { doctorId });
 
     if (from) {
@@ -63,7 +73,7 @@ export class DoctorUnavailabilityService {
   async addUnavailability(
     doctorId: number,
     dto: CreateDoctorUnavailabilityDto,
-  ): Promise<DoctorUnavailability> {
+  ): Promise<DoctorUnavailabilityResponseDto> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
     const payload = this.buildUnavailabilityPayload(dto);
@@ -76,9 +86,16 @@ export class DoctorUnavailabilityService {
       // [startTime, endTime] a estado `rescheduled` con modified_at = NOW() y
       // modification_reason = 'Ausencia médica registrada: ' + dto.reason.
 
-      return manager.save(
+      const saved = await manager.save(
         manager.create(DoctorUnavailability, { doctorId, ...payload }),
       );
+
+      return manager
+        .getRepository(DoctorUnavailability)
+        .createQueryBuilder('unavailability')
+        .select(UNAVAILABILITY_COLUMNS)
+        .where('unavailability.id = :id', { id: saved.id })
+        .getOneOrFail();
     });
   }
 
@@ -86,7 +103,7 @@ export class DoctorUnavailabilityService {
     doctorId: number,
     id: number,
     dto: UpdateDoctorUnavailabilityDto,
-  ): Promise<DoctorUnavailability> {
+  ): Promise<DoctorUnavailabilityResponseDto> {
     const current = await this.doctorUnavailabilityRepository
       .createQueryBuilder('unavailability')
       .where('unavailability.id = :id', { id })
@@ -122,26 +139,33 @@ export class DoctorUnavailabilityService {
 
       return repo
         .createQueryBuilder('unavailability')
+        .select(UNAVAILABILITY_COLUMNS)
         .where('unavailability.id = :id', { id })
         .getOneOrFail();
     });
   }
 
-  async removeUnavailability(doctorId: number, id: number): Promise<void> {
-    const isExist = await this.doctorUnavailabilityRepository
+  async removeUnavailability(
+    doctorId: number,
+    id: number,
+  ): Promise<DoctorUnavailabilityResponseDto> {
+    const removed = await this.doctorUnavailabilityRepository
       .createQueryBuilder('unavailability')
+      .select(UNAVAILABILITY_COLUMNS)
       .where('unavailability.id = :id', { id })
       .andWhere('unavailability.doctorId = :doctorId', { doctorId })
       .getOne();
 
-    if (!isExist)
+    if (!removed)
       throw new NotFoundException(
         'La indisponibilidad no está registrada para el médico.',
       );
 
-    return this.dataSource.transaction(async (manager) => {
-      await manager.softDelete(DoctorUnavailability, { id: isExist.id });
+    await this.dataSource.transaction(async (manager) => {
+      await manager.softDelete(DoctorUnavailability, { id: removed.id });
     });
+
+    return removed;
   }
 
   private buildUnavailabilityPayload(

@@ -23,7 +23,7 @@ import {
 
 import { DoctorUnavailabilityService } from '../services/doctor-unavailability.service.js';
 import { CreateDoctorUnavailabilityDto } from '../dto/create-doctor-unavailability.dto.js';
-import { DoctorUnavailability } from '../entities/doctor-unavailability.entity.js';
+import { DoctorUnavailabilityResponseDto } from '../dto/doctor-unavailability-response.dto.js';
 import { UpdateDoctorUnavailabilityDto } from '../dto/update-doctor-unavailability.dto.js';
 
 @ApiTags('doctor-unavailability')
@@ -44,7 +44,7 @@ export class DoctorUnavailabilityController {
     description: 'Unique identifier of the doctor',
     example: 1,
   })
-  @ApiOkResponse({ type: [DoctorUnavailability] })
+  @ApiOkResponse({ type: [DoctorUnavailabilityResponseDto] })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
@@ -75,7 +75,7 @@ export class DoctorUnavailabilityController {
     example: 1,
   })
   @ApiBody({ type: CreateDoctorUnavailabilityDto })
-  @ApiCreatedResponse({ type: DoctorUnavailability })
+  @ApiCreatedResponse({ type: DoctorUnavailabilityResponseDto })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
@@ -110,7 +110,7 @@ export class DoctorUnavailabilityController {
     example: 1,
   })
   @ApiBody({ type: UpdateDoctorUnavailabilityDto })
-  @ApiOkResponse({ type: DoctorUnavailability })
+  @ApiOkResponse({ type: DoctorUnavailabilityResponseDto })
   @ApiNotFoundResponse({
     description: 'The row is not registered for this doctor.',
   })
@@ -146,6 +146,7 @@ export class DoctorUnavailabilityController {
     example: 1,
   })
   @ApiOkResponse({
+    type: DoctorUnavailabilityResponseDto,
     description: 'Unavailability block deleted successfully.',
   })
   @ApiNotFoundResponse({

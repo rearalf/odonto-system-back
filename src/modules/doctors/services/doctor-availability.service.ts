@@ -14,6 +14,7 @@ import { DoctorsService } from './doctors.service.js';
 import { AvailableSlotsDto } from '../dto/available-slots.dto.js';
 import { BulkDoctorAvailabilityDto } from '../dto/bulk-doctor-availability.dto.js';
 import { CreateDoctorAvailabilityDto } from '../dto/create-doctor-availability.dto.js';
+import { DoctorAvailabilityResponseDto } from '../dto/doctor-availability-response.dto.js';
 import { QueryDoctorSlotsDto } from '../dto/query-doctor-slots.dto.js';
 import { DoctorSlotResponseDto } from '../dto/slot-response.dto.js';
 import { UpdateDoctorAvailabilityDto } from '../dto/update-doctor-availability.dto.js';
@@ -21,6 +22,18 @@ import { UpdateDoctorAvailabilityDto } from '../dto/update-doctor-availability.d
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum.js';
 
 const DEFAULT_SLOT_DURATION = 30;
+
+const AVAILABILITY_COLUMNS = [
+  'availability.id',
+  'availability.doctorId',
+  'availability.startTime',
+  'availability.endTime',
+  'availability.slotDuration',
+  'availability.maxPatientsPerSlot',
+  'availability.isRecurring',
+  'availability.dayOfWeek',
+  'availability.specificDate',
+];
 
 interface AvailabilityPayload {
   startTime: string;
@@ -61,11 +74,12 @@ export class DoctorAvailabilityService {
   async findAvailability(
     doctorId: number,
     isRecurring?: boolean,
-  ): Promise<DoctorAvailability[]> {
+  ): Promise<DoctorAvailabilityResponseDto[]> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
     const query = this.doctorAvailabilityRepository
       .createQueryBuilder('availability')
+      .select(AVAILABILITY_COLUMNS)
       .where('availability.doctorId = :doctorId', { doctorId });
 
     if (isRecurring !== undefined) {
@@ -84,7 +98,7 @@ export class DoctorAvailabilityService {
   async addAvailability(
     doctorId: number,
     dto: CreateDoctorAvailabilityDto,
-  ): Promise<DoctorAvailability> {
+  ): Promise<DoctorAvailabilityResponseDto> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
     const payload = this.buildAvailabilityPayload(dto);
@@ -92,9 +106,16 @@ export class DoctorAvailabilityService {
     return this.dataSource.transaction(async (manager) => {
       await this.assertAvailabilityIsFree(manager, doctorId, payload);
 
-      return manager.save(
+      const saved = await manager.save(
         manager.create(DoctorAvailability, { doctorId, ...payload }),
       );
+
+      return manager
+        .getRepository(DoctorAvailability)
+        .createQueryBuilder('availability')
+        .select(AVAILABILITY_COLUMNS)
+        .where('availability.id = :id', { id: saved.id })
+        .getOneOrFail();
     });
   }
 
@@ -102,8 +123,8 @@ export class DoctorAvailabilityService {
     doctorId: number,
     dto: BulkDoctorAvailabilityDto,
   ): Promise<{
-    previous: DoctorAvailability[];
-    current: DoctorAvailability[];
+    previous: DoctorAvailabilityResponseDto[];
+    current: DoctorAvailabilityResponseDto[];
   }> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
@@ -117,6 +138,7 @@ export class DoctorAvailabilityService {
 
       const previous = await repo
         .createQueryBuilder('availability')
+        .select(AVAILABILITY_COLUMNS)
         .where('availability.doctorId = :doctorId', { doctorId })
         .andWhere('availability.isRecurring = :isRecurring', {
           isRecurring: true,
@@ -129,9 +151,21 @@ export class DoctorAvailabilityService {
         await repo.softDelete({ doctorId, isRecurring: true });
       }
 
-      const current = await repo.save(
+      const saved = await repo.save(
         payloads.map((payload) => repo.create({ doctorId, ...payload })),
       );
+
+      const current = saved.length
+        ? await repo
+            .createQueryBuilder('availability')
+            .select(AVAILABILITY_COLUMNS)
+            .where('availability.id IN (:...ids)', {
+              ids: saved.map((item) => item.id),
+            })
+            .orderBy('availability.dayOfWeek', 'ASC')
+            .addOrderBy('availability.startTime', 'ASC')
+            .getMany()
+        : [];
 
       return { previous, current };
     });
@@ -141,7 +175,7 @@ export class DoctorAvailabilityService {
     doctorId: number,
     id: number,
     dto: UpdateDoctorAvailabilityDto,
-  ): Promise<DoctorAvailability> {
+  ): Promise<DoctorAvailabilityResponseDto> {
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(DoctorAvailability);
 
@@ -174,27 +208,34 @@ export class DoctorAvailabilityService {
 
       return repo
         .createQueryBuilder('availability')
+        .select(AVAILABILITY_COLUMNS)
         .where('availability.id = :id', { id })
         .getOneOrFail();
     });
   }
 
-  async removeAvailability(doctorId: number, id: number): Promise<void> {
-    const isExist = await this.doctorAvailabilityRepository
+  async removeAvailability(
+    doctorId: number,
+    id: number,
+  ): Promise<DoctorAvailabilityResponseDto> {
+    const removed = await this.doctorAvailabilityRepository
       .createQueryBuilder('availability')
+      .select(AVAILABILITY_COLUMNS)
       .where('availability.id = :id', { id })
       .andWhere('availability.doctorId = :doctorId', { doctorId })
       .getOne();
 
-    if (!isExist) {
+    if (!removed) {
       throw new NotFoundException(
         'La disponibilidad no está registrada para el médico.',
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
-      await manager.softDelete(DoctorAvailability, { id: isExist.id });
+    await this.dataSource.transaction(async (manager) => {
+      await manager.softDelete(DoctorAvailability, { id: removed.id });
     });
+
+    return removed;
   }
 
   async availableSlots(
