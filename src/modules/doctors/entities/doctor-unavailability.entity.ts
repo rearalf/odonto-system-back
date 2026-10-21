@@ -1,9 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { Doctor } from './doctor.entity.js';
 
+@Index(
+  'idx_doctor_unavailability_doctor_timerange',
+  ['doctorId', 'startTime', 'endTime'],
+  {
+    where: '"deletedAt" IS NULL',
+  },
+)
 @Entity('doctor_unavailability')
 export class DoctorUnavailability extends BaseEntity {
   @ApiProperty({
