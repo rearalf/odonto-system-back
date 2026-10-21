@@ -15,9 +15,15 @@ import { AvailableSlotsDto } from '../dto/available-slots.dto.js';
 import { BulkDoctorAvailabilityDto } from '../dto/bulk-doctor-availability.dto.js';
 import { CreateDoctorAvailabilityDto } from '../dto/create-doctor-availability.dto.js';
 import { DoctorAvailabilityResponseDto } from '../dto/doctor-availability-response.dto.js';
+import { FilterDoctorAvailabilityDto } from '../dto/filter-doctor-availability.dto.js';
 import { QueryDoctorSlotsDto } from '../dto/query-doctor-slots.dto.js';
 import { DoctorSlotResponseDto } from '../dto/slot-response.dto.js';
 import { UpdateDoctorAvailabilityDto } from '../dto/update-doctor-availability.dto.js';
+
+import {
+  PaginationHelper,
+  PaginationMeta,
+} from '../../../common/helpers/pagination-helper.js';
 
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum.js';
 
@@ -73,8 +79,11 @@ export class DoctorAvailabilityService {
 
   async findAvailability(
     doctorId: number,
-    isRecurring?: boolean,
-  ): Promise<DoctorAvailabilityResponseDto[]> {
+    dto: FilterDoctorAvailabilityDto,
+  ): Promise<{
+    data: DoctorAvailabilityResponseDto[];
+    meta: PaginationMeta | null;
+  }> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
     const query = this.doctorAvailabilityRepository
@@ -82,17 +91,49 @@ export class DoctorAvailabilityService {
       .select(AVAILABILITY_COLUMNS)
       .where('availability.doctorId = :doctorId', { doctorId });
 
-    if (isRecurring !== undefined) {
+    if (dto.isRecurring !== undefined) {
       query.andWhere('availability.isRecurring = :isRecurring', {
-        isRecurring,
+        isRecurring: dto.isRecurring,
       });
     }
 
-    return query
-      .addOrderBy('availability.dayOfWeek', 'ASC')
-      .addOrderBy('availability.specificDate', 'ASC')
-      .addOrderBy('availability.startTime', 'ASC')
-      .getMany();
+    if (dto.from) {
+      query.andWhere('availability.specificDate >= :from', { from: dto.from });
+    }
+
+    if (dto.to) {
+      query.andWhere('availability.specificDate <= :to', { to: dto.to });
+    }
+
+    if (dto.from && dto.to && dto.from > dto.to) {
+      throw new BadRequestException(
+        'El parámetro from no puede ser posterior a to.',
+      );
+    }
+
+    if (dto.sort && dto.order) {
+      query.addOrderBy(`availability.${dto.sort}`, dto.order);
+    } else {
+      query
+        .addOrderBy('availability.dayOfWeek', 'ASC')
+        .addOrderBy('availability.specificDate', 'ASC')
+        .addOrderBy('availability.startTime', 'ASC');
+    }
+
+    const { pagination, page = 1, per_page: perPage = 10 } = dto;
+    let total = 0;
+
+    if (pagination) {
+      total = await query.getCount();
+      PaginationHelper.paginate(query, page, perPage);
+    }
+
+    const data = await query.getMany();
+
+    return {
+      data,
+      meta: pagination ? PaginationHelper.buildMeta(total, dto) : null,
+    };
   }
 
   async addAvailability(

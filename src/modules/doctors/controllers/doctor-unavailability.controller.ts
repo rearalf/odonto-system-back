@@ -24,6 +24,7 @@ import {
 import { DoctorUnavailabilityService } from '../services/doctor-unavailability.service.js';
 import { CreateDoctorUnavailabilityDto } from '../dto/create-doctor-unavailability.dto.js';
 import { DoctorUnavailabilityResponseDto } from '../dto/doctor-unavailability-response.dto.js';
+import { FilterDoctorUnavailabilityDto } from '../dto/filter-doctor-unavailability.dto.js';
 import { UpdateDoctorUnavailabilityDto } from '../dto/update-doctor-unavailability.dto.js';
 
 @ApiTags('doctor-unavailability')
@@ -35,32 +36,49 @@ export class DoctorUnavailabilityController {
 
   @Get()
   @ApiOperation({
-    summary: 'List the unavailability blocks of a doctor',
+    summary: 'List the unavailability blocks of a doctor (paginated)',
     description:
-      'Returns every active unavailability block of the doctor sorted by start instant, without pagination. Optionally filters by a date range with from and to (YYYY-MM-DD).',
+      'Returns unavailability blocks sorted by startTime. Supports pagination and date range filtering.',
   })
   @ApiParam({
     name: 'doctorId',
     description: 'Unique identifier of the doctor',
     example: 1,
   })
-  @ApiOkResponse({ type: [DoctorUnavailabilityResponseDto] })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            $ref: '#/components/schemas/DoctorUnavailabilityResponseDto',
+          },
+        },
+        meta: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            total_count: { type: 'integer', example: 42 },
+            total_pages: { type: 'integer', example: 5 },
+            page: { type: 'integer', example: 1 },
+            per_page: { type: 'integer', example: 10 },
+          },
+        },
+      },
+    },
+  })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
   @ApiBadRequestResponse({
-    description: 'from or to is malformed or from comes after to.',
+    description: 'Invalid query parameters.',
   })
   findUnavailability(
     @Param('doctorId', ParseIntPipe) doctorId: number,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query() dto: FilterDoctorUnavailabilityDto,
   ) {
-    return this.doctorUnavailabilityService.findUnavailability(
-      doctorId,
-      from,
-      to,
-    );
+    return this.doctorUnavailabilityService.findUnavailability(doctorId, dto);
   }
 
   @Post()

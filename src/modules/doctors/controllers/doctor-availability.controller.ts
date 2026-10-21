@@ -28,6 +28,7 @@ import { BulkDoctorAvailabilityDto } from '../dto/bulk-doctor-availability.dto.j
 import { CreateDoctorAvailabilityDto } from '../dto/create-doctor-availability.dto.js';
 import { DoctorAvailabilityResponseDto } from '../dto/doctor-availability-response.dto.js';
 import { DoctorSlotResponseDto } from '../dto/slot-response.dto.js';
+import { FilterDoctorAvailabilityDto } from '../dto/filter-doctor-availability.dto.js';
 import { QueryDoctorSlotsDto } from '../dto/query-doctor-slots.dto.js';
 import { UpdateDoctorAvailabilityDto } from '../dto/update-doctor-availability.dto.js';
 
@@ -40,27 +41,47 @@ export class DoctorAvailabilityController {
 
   @Get('availability')
   @ApiOperation({
-    summary: 'List the availability blocks of a doctor',
+    summary: 'List the availability blocks of a doctor (paginated)',
     description:
-      'Returns every active availability block of the doctor, recurring blocks and date specific blocks, without pagination. Optionally filter by isRecurring=true/false.',
+      'Returns availability blocks with pagination, filtering by recurring/specific date and date range.',
   })
   @ApiParam({
     name: 'doctorId',
     description: 'Unique identifier of the doctor',
     example: 1,
   })
-  @ApiOkResponse({ type: [DoctorAvailabilityResponseDto] })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/DoctorAvailabilityResponseDto' },
+        },
+        meta: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            total_count: { type: 'integer', example: 42 },
+            total_pages: { type: 'integer', example: 5 },
+            page: { type: 'integer', example: 1 },
+            per_page: { type: 'integer', example: 10 },
+          },
+        },
+      },
+    },
+  })
   @ApiNotFoundResponse({
     description: 'Doctor with the given ID does not exist.',
   })
+  @ApiBadRequestResponse({
+    description: 'Invalid query parameters.',
+  })
   findAvailability(
     @Param('doctorId', ParseIntPipe) doctorId: number,
-    @Query('isRecurring') isRecurring?: string,
+    @Query() dto: FilterDoctorAvailabilityDto,
   ) {
-    return this.doctorAvailabilityService.findAvailability(
-      doctorId,
-      isRecurring === undefined ? undefined : isRecurring === 'true',
-    );
+    return this.doctorAvailabilityService.findAvailability(doctorId, dto);
   }
 
   @Post('availability')

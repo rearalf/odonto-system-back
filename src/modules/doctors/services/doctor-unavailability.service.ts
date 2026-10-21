@@ -12,7 +12,13 @@ import { DoctorsService } from './doctors.service.js';
 
 import { CreateDoctorUnavailabilityDto } from '../dto/create-doctor-unavailability.dto.js';
 import { DoctorUnavailabilityResponseDto } from '../dto/doctor-unavailability-response.dto.js';
+import { FilterDoctorUnavailabilityDto } from '../dto/filter-doctor-unavailability.dto.js';
 import { UpdateDoctorUnavailabilityDto } from '../dto/update-doctor-unavailability.dto.js';
+
+import {
+  PaginationHelper,
+  PaginationMeta,
+} from '../../../common/helpers/pagination-helper.js';
 
 interface UnavailabilityPayload {
   startTime: Date;
@@ -39,9 +45,11 @@ export class DoctorUnavailabilityService {
 
   async findUnavailability(
     doctorId: number,
-    from?: string,
-    to?: string,
-  ): Promise<DoctorUnavailabilityResponseDto[]> {
+    dto: FilterDoctorUnavailabilityDto,
+  ): Promise<{
+    data: DoctorUnavailabilityResponseDto[];
+    meta: PaginationMeta | null;
+  }> {
     await this.doctorsService.assertDoctorExists(doctorId);
 
     const query = this.doctorUnavailabilityRepository
@@ -49,25 +57,42 @@ export class DoctorUnavailabilityService {
       .select(UNAVAILABILITY_COLUMNS)
       .where('unavailability.doctorId = :doctorId', { doctorId });
 
-    if (from) {
+    if (dto.from) {
       query.andWhere('unavailability.endTime >= :from', {
-        from: new Date(`${from}T00:00:00.000Z`),
+        from: new Date(`${dto.from}T00:00:00.000Z`),
       });
     }
 
-    if (to) {
+    if (dto.to) {
       query.andWhere('unavailability.startTime <= :to', {
-        to: new Date(`${to}T23:59:59.999Z`),
+        to: new Date(`${dto.to}T23:59:59.999Z`),
       });
     }
 
-    if (from && to && from > to) {
+    if (dto.from && dto.to && dto.from > dto.to) {
       throw new BadRequestException(
         'El parámetro from no puede ser posterior a to.',
       );
     }
 
-    return query.addOrderBy('unavailability.startTime', 'ASC').getMany();
+    const sort = dto.sort ?? 'startTime';
+    const order = dto.order ?? 'ASC';
+    query.addOrderBy(`unavailability.${sort}`, order);
+
+    const { pagination, page = 1, per_page: perPage = 10 } = dto;
+    let total = 0;
+
+    if (pagination) {
+      total = await query.getCount();
+      PaginationHelper.paginate(query, page, perPage);
+    }
+
+    const data = await query.getMany();
+
+    return {
+      data,
+      meta: pagination ? PaginationHelper.buildMeta(total, dto) : null,
+    };
   }
 
   async addUnavailability(
