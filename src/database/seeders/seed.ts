@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { databaseConfig } from '../../config/database.config.js';
 import { SeedRegistry } from '../entities/seed-registry.entity.js';
 import { PersonTypeSeeder } from './person-type.seeder.js';
+import { SpecialtySeeder } from './specialty.seeder.js';
 
 const dataSource = new DataSource({
   ...databaseConfig(),
@@ -10,7 +11,10 @@ const dataSource = new DataSource({
   migrations: ['src/migrations/*.ts'],
 });
 
-const seeders = [{ name: 'PersonTypeSeeder', runner: new PersonTypeSeeder() }];
+const seeders = [
+  { name: 'PersonTypeSeeder', runner: new PersonTypeSeeder() },
+  { name: 'SpecialtySeeder', runner: new SpecialtySeeder() },
+];
 
 async function seed() {
   await dataSource.initialize();

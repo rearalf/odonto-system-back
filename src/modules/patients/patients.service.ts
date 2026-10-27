@@ -18,6 +18,8 @@ import {
 } from '../../common/helpers/pagination-helper.js';
 import { IPatientsAllFormatRow } from './interfaces/patient.interface.js';
 import { calculateAge } from '../../common/utils/calculateAge.js';
+import { plainToInstance } from 'class-transformer';
+import { PatientResponseDto } from './dto/patient-response.dto.js';
 
 @Injectable()
 export class PatientsService {
@@ -112,7 +114,7 @@ export class PatientsService {
     return patient;
   }
 
-  async findOne(id: number) {
+  async findOne(id: number): Promise<PatientResponseDto> {
     const patient = await this.patientRepository
       .createQueryBuilder('patient')
       .leftJoinAndSelect('patient.person', 'person')
@@ -166,7 +168,7 @@ export class PatientsService {
       ...rest
     } = patient;
 
-    return {
+    return plainToInstance(PatientResponseDto, {
       ...rest,
       systemicReview: {
         hasSncIssues,
@@ -179,13 +181,10 @@ export class PatientsService {
         hasSgiIssues,
         systemEvaluationNotes,
       },
-    };
+    });
   }
 
-  async create(
-    dto: CreatePatientDto,
-    _profilePicture?: Express.Multer.File,
-  ): Promise<Patient> {
+  async create(dto: CreatePatientDto, _profilePicture?: Express.Multer.File) {
     const {
       firstName,
       middleName,
@@ -197,7 +196,7 @@ export class PatientsService {
       ...patientData
     } = dto;
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       const person = await this.personsService.createWithManager(manager, {
         firstName,
         middleName,
@@ -215,6 +214,8 @@ export class PatientsService {
       });
       return manager.save(patient);
     });
+
+    return this.findOne(saved.id);
   }
 
   async update(
