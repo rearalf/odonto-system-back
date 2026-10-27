@@ -1,11 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Column, Entity, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  type Relation,
+} from 'typeorm';
 
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { Person } from '../../persons/entities/person.entity.js';
 import { DoctorSpecialty } from './doctor-specialty.entity.js';
 import { DoctorAvailability } from './doctor-availability.entity.js';
 import { DoctorUnavailability } from './doctor-unavailability.entity.js';
+import { Appointment } from '../../appointments/entities/appointment.entity.js';
 
 @Entity('doctor')
 export class Doctor extends BaseEntity {
@@ -69,4 +77,11 @@ export class Doctor extends BaseEntity {
     (unavailability) => unavailability.doctor,
   )
   unavailabilities: DoctorUnavailability[];
+
+  @ApiPropertyOptional({
+    type: () => [Appointment],
+    description: 'List of appointments assigned to this doctor',
+  })
+  @OneToMany(() => Appointment, (appointment) => appointment.doctor)
+  appointments: Relation<Appointment[]>;
 }

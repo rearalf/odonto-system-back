@@ -1,13 +1,16 @@
-import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { validate } from './config/env.validation.js';
+import { Module } from '@nestjs/common';
+
 import { databaseConfig } from './config/database.config.js';
+import { validate } from './config/env.validation.js';
+
+import { AppointmentsModule } from './modules/appointments/appointments.module.js';
 import { PersonTypesModule } from './modules/person-types/person-types.module.js';
-import { PersonsModule } from './modules/persons/persons.module.js';
-import { PatientsModule } from './modules/patients/patients.module.js';
 import { SpecialtiesModule } from './modules/specialties/specialties.module.js';
+import { PatientsModule } from './modules/patients/patients.module.js';
 import { DoctorsModule } from './modules/doctors/doctors.module.js';
+import { PersonsModule } from './modules/persons/persons.module.js';
 
 @Module({
   imports: [
@@ -25,11 +28,12 @@ import { DoctorsModule } from './modules/doctors/doctors.module.js';
         retryDelay: 1000,
       }),
     }),
+    PatientsModule,
+    DoctorsModule,
+    SpecialtiesModule,
+    AppointmentsModule,
     PersonTypesModule,
     PersonsModule,
-    PatientsModule,
-    SpecialtiesModule,
-    DoctorsModule,
   ],
   controllers: [],
   providers: [],

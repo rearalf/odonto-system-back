@@ -1,8 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+import {
+  Column,
+  Entity,
+  OneToOne,
+  OneToMany,
+  JoinColumn,
+  type Relation,
+} from 'typeorm';
 import { BaseEntity } from '../../../common/database/base.entity.js';
 import { GenderType } from '../../../common/enums/gender-type.enum.js';
 import { Person } from '../../persons/entities/person.entity.js';
+import { Appointment } from '../../appointments/entities/appointment.entity.js';
 
 @Entity('patient')
 export class Patient extends BaseEntity {
@@ -262,4 +270,11 @@ export class Patient extends BaseEntity {
     comment: 'Detailed clinical notes from the systems review',
   })
   systemEvaluationNotes: string | null;
+
+  @ApiPropertyOptional({
+    type: () => [Appointment],
+    description: 'List of appointments associated with this patient',
+  })
+  @OneToMany(() => Appointment, (appointment) => appointment.patient)
+  appointments: Relation<Appointment[]>;
 }
