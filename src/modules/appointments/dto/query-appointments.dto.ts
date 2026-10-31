@@ -21,4 +21,11 @@ export class QueryAppointmentsDto {
     type: String,
   })
   to?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by patient name (searches first, middle, last name)',
+    example: 'Juan Pérez',
+    type: String,
+  })
+  patientName?: string;
 }

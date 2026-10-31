@@ -61,4 +61,13 @@ export class CreateAppointmentDto {
     type: Boolean,
   })
   is_walk_in?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Permite agendar en sobrecupo ignorando solapamiento de horario (uso exclusivo Walk-in)',
+    default: false,
+    example: false,
+    type: Boolean,
+  })
+  allow_overbooking?: boolean;
 }
