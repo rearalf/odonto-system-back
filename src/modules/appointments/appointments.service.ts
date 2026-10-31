@@ -156,6 +156,25 @@ export class AppointmentsService {
       );
     }
 
+    if (query.status?.length) {
+      qb.andWhere('appointment.status IN (:...status)', {
+        status: query.status,
+      });
+    }
+
+    const sortBy = query.sortBy ?? 'startTime';
+    const sortOrder = query.sortOrder ?? 'ASC';
+    const allowedFields = [
+      'startTime',
+      'endTime',
+      'createdAt',
+      'updatedAt',
+      'modifiedAt',
+    ];
+    const safeSortBy = allowedFields.includes(sortBy) ? sortBy : 'startTime';
+
+    qb.orderBy(`appointment.${safeSortBy}`, sortOrder);
+
     return await qb.getMany();
   }
 

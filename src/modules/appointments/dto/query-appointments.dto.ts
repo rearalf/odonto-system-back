@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { AppointmentStatus } from '../../../common/enums/appointment-status.js';
 
 export class QueryAppointmentsDto {
   @ApiPropertyOptional({
@@ -28,4 +29,26 @@ export class QueryAppointmentsDto {
     type: String,
   })
   patientName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by appointment status',
+    enum: AppointmentStatus,
+    isArray: true,
+    example: [AppointmentStatus.SCHEDULED, AppointmentStatus.WAITING],
+  })
+  status?: AppointmentStatus[];
+
+  @ApiPropertyOptional({
+    description: 'Field to sort by',
+    enum: ['startTime', 'endTime', 'createdAt', 'updatedAt', 'modifiedAt'],
+    example: 'startTime',
+  })
+  sortBy?: 'startTime' | 'endTime' | 'createdAt' | 'updatedAt' | 'modifiedAt';
+
+  @ApiPropertyOptional({
+    description: 'Sort direction',
+    enum: ['ASC', 'DESC'],
+    example: 'ASC',
+  })
+  sortOrder?: 'ASC' | 'DESC';
 }
