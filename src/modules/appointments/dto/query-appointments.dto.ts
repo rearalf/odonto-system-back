@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AppointmentStatus } from '../../../common/enums/appointment-status.js';
+import { PaginationDto } from '../../../common/dto/pagination.dto.js';
 
-export class QueryAppointmentsDto {
+export class QueryAppointmentsDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Filter calendar by doctor identifier',
     example: 1,

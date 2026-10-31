@@ -26,10 +26,18 @@ import { AvailableSlotDto } from './dto/available-slot.dto.js';
 import { AvailableSlotsQueryDto } from './dto/available-slots-query.dto.js';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
+import { PaginationMeta } from '../../common/helpers/pagination-helper.js';
+import { AppointmentsService } from './appointments.service.js';
+import {
+  AppointmentListDto,
+  PaginatedAppointmentsResponseDto,
+} from './dto/appointment-list.dto.js';
 
 @ApiTags('Appointments')
 @Controller('appointments')
 export class AppointmentsController {
+  constructor(private readonly appointmentsService: AppointmentsService) {}
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -59,15 +67,18 @@ export class AppointmentsController {
   @ApiOperation({
     summary: 'Retrieve calendar / agenda appointments',
     description:
-      'Fetches a filtered list of appointments by doctor ID and date boundaries for calendar visualization.',
+      'Fetches a filtered list of appointments by doctor ID and date boundaries for calendar visualization. ' +
+      'Supports optional pagination (enabled by default) and multiple filter criteria.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'List of matching appointments retrieved successfully.',
-    type: [Appointment],
+    type: PaginatedAppointmentsResponseDto,
   })
-  async findAll(@Query() query: QueryAppointmentsDto): Promise<Appointment[]> {
-    return [];
+  async findAll(
+    @Query() query: QueryAppointmentsDto,
+  ): Promise<{ data: AppointmentListDto[]; meta: PaginationMeta | null }> {
+    return this.appointmentsService.findAll(query);
   }
 
   @Get('doctor/:id/available-slots')

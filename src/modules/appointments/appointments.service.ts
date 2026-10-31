@@ -18,6 +18,11 @@ import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
 import { AppointmentStatus } from '../../common/enums/appointment-status.js';
 import { AvailableSlotDto } from './dto/available-slot.dto.js';
 import { AvailableSlotsQueryDto } from './dto/available-slots-query.dto.js';
+import {
+  PaginationHelper,
+  PaginationMeta,
+} from '../../common/helpers/pagination-helper.js';
+import { AppointmentListDto } from './dto/appointment-list.dto.js';
 
 @Injectable()
 export class AppointmentsService {
@@ -120,12 +125,15 @@ export class AppointmentsService {
     return await this.appointmentRepository.save(appointment);
   }
 
-  async findAll(query: QueryAppointmentsDto): Promise<Appointment[]> {
+  async findAll(
+    query: QueryAppointmentsDto,
+  ): Promise<{ data: AppointmentListDto[]; meta: PaginationMeta | null }> {
     const qb = this.appointmentRepository
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.doctor', 'doctor')
       .leftJoinAndSelect('appointment.patient', 'patient')
       .leftJoinAndSelect('patient.person', 'person')
+      .leftJoinAndSelect('doctor.person', 'doctorPerson')
       .orderBy('appointment.startTime', 'ASC');
 
     if (query.doctorId) {
@@ -175,7 +183,23 @@ export class AppointmentsService {
 
     qb.orderBy(`appointment.${safeSortBy}`, sortOrder);
 
-    return await qb.getMany();
+    const { pagination = true, page = 1, per_page: perPage = 10 } = query;
+
+    if (pagination) {
+      qb.skip((page - 1) * perPage).take(perPage);
+    }
+
+    if (pagination) {
+      const [data, total] = await qb.getManyAndCount();
+      const mappedData = data.map((a) => this.mapToListDto(a));
+      return {
+        data: mappedData,
+        meta: PaginationHelper.buildMeta(total, query),
+      };
+    }
+
+    const data = await qb.getMany();
+    return { data: data.map((a) => this.mapToListDto(a)), meta: null };
   }
 
   async findOne(id: number): Promise<Appointment> {
@@ -361,5 +385,45 @@ export class AppointmentsService {
         `The doctor already has an active appointment between ${collision.startTime.toISOString()} and ${collision.endTime.toISOString()}.`,
       );
     }
+  }
+
+  private mapToListDto(a: Appointment): AppointmentListDto {
+    const patientPerson = a.patient?.person;
+    const doctorPerson = a.doctor?.person;
+    const start = new Date(a.startTime);
+    const end = new Date(a.endTime);
+    const created = new Date(a.createdAt);
+    const modified = a.modifiedAt ? new Date(a.modifiedAt) : null;
+
+    const statusColorMap: Record<AppointmentStatus, string> = {
+      [AppointmentStatus.SCHEDULED]: 'blue',
+      [AppointmentStatus.CONFIRMED]: 'teal',
+      [AppointmentStatus.WAITING]: 'amber',
+      [AppointmentStatus.IN_PROGRESS]: 'purple',
+      [AppointmentStatus.COMPLETED]: 'green',
+      [AppointmentStatus.CANCELLED]: 'red',
+      [AppointmentStatus.NO_SHOW]: 'gray',
+    };
+
+    const fullName = (p: typeof patientPerson) =>
+      [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ');
+
+    return {
+      id: a.id,
+      patientId: a.patientId,
+      doctorId: a.doctorId,
+      startTime: a.startTime,
+      endTime: a.endTime,
+      status: a.status,
+      reason: a.reason,
+      isWalkIn: a.isWalkIn,
+      patientFullName: fullName(patientPerson),
+      doctorFullName: fullName(doctorPerson),
+      statusColor: statusColorMap[a.status] ?? 'gray',
+      durationMinutes: Math.round((end.getTime() - start.getTime()) / 60000),
+      rescheduled: modified !== null && start.getTime() !== created.getTime(),
+      createdAt: a.createdAt,
+      modifiedAt: a.modifiedAt ?? undefined,
+    };
   }
 }
