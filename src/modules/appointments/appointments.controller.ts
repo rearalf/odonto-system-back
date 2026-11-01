@@ -59,8 +59,7 @@ export class AppointmentsController {
   async create(
     @Body() createAppointmentDto: CreateAppointmentDto,
   ): Promise<Appointment> {
-    // Service invocation pending implementation
-    return {} as Appointment;
+    return this.appointmentsService.create(createAppointmentDto);
   }
 
   @Get()
@@ -105,7 +104,7 @@ export class AppointmentsController {
     @Param('id', ParseIntPipe) doctorId: number,
     @Query() query: AvailableSlotsQueryDto,
   ): Promise<AvailableSlotDto[]> {
-    return [];
+    return this.appointmentsService.getDoctorAvailableSlots(doctorId, query);
   }
 
   @Get(':id')
@@ -129,7 +128,7 @@ export class AppointmentsController {
     description: 'No appointment found matching the provided ID.',
   })
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<Appointment> {
-    return {} as Appointment;
+    return this.appointmentsService.findOne(id);
   }
 
   @Patch(':id/reschedule')
@@ -162,7 +161,7 @@ export class AppointmentsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() rescheduleDto: RescheduleAppointmentDto,
   ): Promise<Appointment> {
-    return {} as Appointment;
+    return this.appointmentsService.reschedule(id, rescheduleDto);
   }
 
   @Patch(':id/status')
@@ -192,6 +191,6 @@ export class AppointmentsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateStatusDto: UpdateAppointmentStatusDto,
   ): Promise<Appointment> {
-    return {} as Appointment;
+    return this.appointmentsService.updateStatus(id, updateStatusDto);
   }
 }
