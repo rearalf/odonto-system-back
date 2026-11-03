@@ -23,6 +23,7 @@ import {
   PaginationMeta,
 } from '../../common/helpers/pagination-helper.js';
 import { AppointmentListDto } from './dto/appointment-list.dto.js';
+import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
 
 @Injectable()
 export class AppointmentsService {
@@ -35,7 +36,9 @@ export class AppointmentsService {
     private readonly patientRepository: Repository<Patient>,
   ) {}
 
-  async create(createDto: CreateAppointmentDto): Promise<Appointment> {
+  async create(
+    createDto: CreateAppointmentDto,
+  ): Promise<CreateAppointmentResponseDto> {
     const startTime = new Date(createDto.start_time);
     const endTime = new Date(createDto.end_time);
 
@@ -85,16 +88,22 @@ export class AppointmentsService {
       }
     }
 
-    const [doctorExists, patientExists] = await Promise.all([
-      this.doctorRepository.exists({ where: { id: createDto.doctor_id } }),
-      this.patientRepository.exists({ where: { id: createDto.patient_id } }),
+    const [doctor, patient] = await Promise.all([
+      this.doctorRepository.findOne({
+        where: { id: createDto.doctor_id },
+        relations: { person: true },
+      }),
+      this.patientRepository.findOne({
+        where: { id: createDto.patient_id },
+        relations: { person: true },
+      }),
     ]);
 
-    if (!doctorExists)
+    if (!doctor)
       throw new NotFoundException(
         `Doctor ${createDto.doctor_id} no encontrado.`,
       );
-    if (!patientExists)
+    if (!patient)
       throw new NotFoundException(
         `Paciente ${createDto.patient_id} no encontrado.`,
       );
@@ -122,7 +131,8 @@ export class AppointmentsService {
       isWalkIn,
     });
 
-    return await this.appointmentRepository.save(appointment);
+    const saved = await this.appointmentRepository.save(appointment);
+    return this.mapToCreateResponseDto(saved, doctor, patient);
   }
 
   async findAll(
@@ -424,6 +434,26 @@ export class AppointmentsService {
       rescheduled: modified !== null && start.getTime() !== created.getTime(),
       createdAt: a.createdAt,
       modifiedAt: a.modifiedAt ?? undefined,
+    };
+  }
+
+  private mapToCreateResponseDto(
+    appointment: Appointment,
+    doctor: Doctor,
+    patient: Patient,
+  ): CreateAppointmentResponseDto {
+    const fullName = (p: typeof patient.person) =>
+      [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ');
+
+    return {
+      id: appointment.id,
+      patientId: appointment.patientId,
+      patientFullName: fullName(patient.person),
+      doctorId: appointment.doctorId,
+      doctorFullName: fullName(doctor.person),
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      status: appointment.status,
     };
   }
 }

@@ -20,6 +20,7 @@ import {
   ApiConflictResponse,
 } from '@nestjs/swagger';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
+import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
 import { Appointment } from './entities/appointment.entity.js';
 import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
 import { AvailableSlotDto } from './dto/available-slot.dto.js';
@@ -48,7 +49,7 @@ export class AppointmentsController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Appointment scheduled successfully.',
-    type: Appointment,
+    type: CreateAppointmentResponseDto,
   })
   @ApiBadRequestResponse({
     description: 'Validation failed on input payloads or dates.',
@@ -58,7 +59,7 @@ export class AppointmentsController {
   })
   async create(
     @Body() createAppointmentDto: CreateAppointmentDto,
-  ): Promise<Appointment> {
+  ): Promise<CreateAppointmentResponseDto> {
     return this.appointmentsService.create(createAppointmentDto);
   }
 
