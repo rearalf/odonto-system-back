@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto.js';
 
 export class QueryAppointmentsDto extends PaginationDto {
@@ -48,6 +48,7 @@ export class QueryAppointmentsDto extends PaginationDto {
     example: [1, 3],
   })
   @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
   @IsArray({ message: 'El filtro de estado debe ser un array.' })
   @IsInt({
     each: true,

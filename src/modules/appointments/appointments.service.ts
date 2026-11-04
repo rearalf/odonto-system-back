@@ -204,19 +204,6 @@ export class AppointmentsService {
     }
 
     if (query.status?.length) {
-      qb.andWhere('status.name IN (:...statusNames)', {
-        statusNames: query.status.map((id) => {
-          // We need to map IDs to names. Since we have the IDs, we can join or use a subquery.
-          // Simpler: filter by statusId since we have the IDs
-          return id;
-        }),
-      });
-      // Actually, since we're joining status, we can filter by status.id
-      // But the query.status contains IDs, so we need to adjust
-    }
-
-    // Better approach: filter by statusId directly on appointment
-    if (query.status?.length) {
       qb.andWhere('appointment.statusId IN (:...statusIds)', {
         statusIds: query.status,
       });
