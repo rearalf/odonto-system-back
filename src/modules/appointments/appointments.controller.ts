@@ -33,6 +33,7 @@ import {
   AppointmentListDto,
   PaginatedAppointmentsResponseDto,
 } from './dto/appointment-list.dto.js';
+import { AppointmentStatusDto } from './dto/appointment-status.dto.js';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -79,6 +80,24 @@ export class AppointmentsController {
     @Query() query: QueryAppointmentsDto,
   ): Promise<{ data: AppointmentListDto[]; meta: PaginationMeta | null }> {
     return this.appointmentsService.findAll(query);
+  }
+
+  @Get('statuses')
+  @ApiOperation({
+    summary: 'Get all available appointment statuses',
+    description:
+      'Returns a list of all active appointment statuses with their IDs, names, colors, and descriptions. ' +
+      'Use this endpoint to populate status dropdowns in the frontend. ' +
+      'The `statusId` from this response should be used when creating or updating appointments.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description:
+      'List of active appointment statuses ordered by display order.',
+    type: [AppointmentStatusDto],
+  })
+  async getStatuses(): Promise<AppointmentStatusDto[]> {
+    return this.appointmentsService.getStatuses();
   }
 
   @Get('doctor/:id/available-slots')

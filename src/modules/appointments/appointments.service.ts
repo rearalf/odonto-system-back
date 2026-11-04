@@ -495,4 +495,20 @@ export class AppointmentsService {
       statusColor: appointment.status?.color ?? 'gray',
     };
   }
+
+  async getStatuses(): Promise<AppointmentStatus[]> {
+    const status = await this.appointmentStatusRepository
+      .createQueryBuilder('appointment_status')
+      .where('appointment_status.isActive = true')
+      .orderBy('appointment_status.sortOrder', 'ASC')
+      .select([
+        'appointment_status.id',
+        'appointment_status.name',
+        'appointment_status.color',
+        'appointment_status.description',
+      ])
+      .getMany();
+
+    return JSON.parse(JSON.stringify(status));
+  }
 }
