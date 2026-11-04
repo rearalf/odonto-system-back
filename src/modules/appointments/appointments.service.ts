@@ -8,14 +8,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan, MoreThan, Not, In } from 'typeorm';
 
 import { Appointment } from './entities/appointment.entity.js';
+import { AppointmentStatus } from './entities/appointment-status.entity.js';
 import { Doctor } from '../doctors/entities/doctor.entity.js';
 import { Patient } from '../patients/entities/patient.entity.js';
+import { Person } from '../persons/entities/person.entity.js';
 
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
 import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
-import { AppointmentStatus } from '../../common/enums/appointment-status.js';
 import { AvailableSlotDto } from './dto/available-slot.dto.js';
 import { AvailableSlotsQueryDto } from './dto/available-slots-query.dto.js';
 import {
@@ -25,11 +26,25 @@ import {
 import { AppointmentListDto } from './dto/appointment-list.dto.js';
 import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
 
+// Status name constants for business logic (avoid magic strings)
+const STATUS = {
+  SCHEDULED: 'scheduled',
+  CONFIRMED: 'confirmed',
+  WAITING: 'waiting',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  NO_SHOW: 'no_show',
+  REJECTED: 'rejected',
+} as const;
+
 @Injectable()
 export class AppointmentsService {
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(AppointmentStatus)
+    private readonly appointmentStatusRepository: Repository<AppointmentStatus>,
     @InjectRepository(Doctor)
     private readonly doctorRepository: Repository<Doctor>,
     @InjectRepository(Patient)
@@ -55,16 +70,17 @@ export class AppointmentsService {
     }
 
     const isWalkIn = createDto.is_walk_in ?? false;
-    let status = createDto.status;
+    let statusId = createDto.statusId;
 
     if (isWalkIn) {
-      const validWalkInStatuses = [
-        AppointmentStatus.WAITING,
-        AppointmentStatus.IN_PROGRESS,
-      ];
-      status = validWalkInStatuses.includes(status as AppointmentStatus)
-        ? status
-        : AppointmentStatus.WAITING;
+      const validWalkInStatusNames = [STATUS.WAITING, STATUS.IN_PROGRESS];
+      const validStatuses = await this.appointmentStatusRepository.find({
+        where: { name: In(validWalkInStatusNames) },
+      });
+      const validStatusIds = validStatuses.map((s) => s.id);
+      statusId = validStatusIds.includes(statusId as number)
+        ? statusId
+        : (validStatuses.find((s) => s.name === STATUS.WAITING)?.id ?? 1);
 
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
       if (startTime < thirtyMinutesAgo) {
@@ -73,13 +89,14 @@ export class AppointmentsService {
         );
       }
     } else {
-      const validRegularStatuses = [
-        AppointmentStatus.SCHEDULED,
-        AppointmentStatus.CONFIRMED,
-      ];
-      status = validRegularStatuses.includes(status as AppointmentStatus)
-        ? status
-        : AppointmentStatus.SCHEDULED;
+      const validRegularStatusNames = [STATUS.SCHEDULED, STATUS.CONFIRMED];
+      const validStatuses = await this.appointmentStatusRepository.find({
+        where: { name: In(validRegularStatusNames) },
+      });
+      const validStatusIds = validStatuses.map((s) => s.id);
+      statusId = validStatusIds.includes(statusId as number)
+        ? statusId
+        : (validStatuses.find((s) => s.name === STATUS.SCHEDULED)?.id ?? 1);
 
       if (startTime < new Date()) {
         throw new BadRequestException(
@@ -123,7 +140,7 @@ export class AppointmentsService {
     const appointment = this.appointmentRepository.create({
       reason: createDto.reason,
       notes: createDto.notes,
-      status,
+      statusId,
       startTime,
       endTime,
       doctorId: createDto.doctor_id,
@@ -132,7 +149,18 @@ export class AppointmentsService {
     });
 
     const saved = await this.appointmentRepository.save(appointment);
-    return this.mapToCreateResponseDto(saved, doctor, patient);
+
+    // Load the status relation for the response
+    const appointmentWithStatus = await this.appointmentRepository.findOne({
+      where: { id: saved.id },
+      relations: {
+        status: true,
+        doctor: { person: true },
+        patient: { person: true },
+      },
+    });
+
+    return this.mapToCreateResponseDto(appointmentWithStatus!);
   }
 
   async findAll(
@@ -144,6 +172,7 @@ export class AppointmentsService {
       .leftJoinAndSelect('appointment.patient', 'patient')
       .leftJoinAndSelect('patient.person', 'person')
       .leftJoinAndSelect('doctor.person', 'doctorPerson')
+      .leftJoinAndSelect('appointment.status', 'status')
       .orderBy('appointment.startTime', 'ASC');
 
     if (query.doctorId) {
@@ -175,8 +204,21 @@ export class AppointmentsService {
     }
 
     if (query.status?.length) {
-      qb.andWhere('appointment.status IN (:...status)', {
-        status: query.status,
+      qb.andWhere('status.name IN (:...statusNames)', {
+        statusNames: query.status.map((id) => {
+          // We need to map IDs to names. Since we have the IDs, we can join or use a subquery.
+          // Simpler: filter by statusId since we have the IDs
+          return id;
+        }),
+      });
+      // Actually, since we're joining status, we can filter by status.id
+      // But the query.status contains IDs, so we need to adjust
+    }
+
+    // Better approach: filter by statusId directly on appointment
+    if (query.status?.length) {
+      qb.andWhere('appointment.statusId IN (:...statusIds)', {
+        statusIds: query.status,
       });
     }
 
@@ -218,6 +260,7 @@ export class AppointmentsService {
       relations: {
         doctor: true,
         patient: true,
+        status: true,
       },
     });
 
@@ -235,11 +278,11 @@ export class AppointmentsService {
     const appointment = await this.findOne(id);
 
     if (
-      appointment.status === AppointmentStatus.CANCELLED ||
-      appointment.status === AppointmentStatus.COMPLETED
+      appointment.status.name === STATUS.CANCELLED ||
+      appointment.status.name === STATUS.COMPLETED
     ) {
       throw new BadRequestException(
-        `Cannot reschedule an appointment that is already ${appointment.status}.`,
+        `Cannot reschedule an appointment that is already ${appointment.status.name}.`,
       );
     }
 
@@ -278,15 +321,20 @@ export class AppointmentsService {
     const appointment = await this.findOne(id);
 
     if (
-      appointment.status === AppointmentStatus.CANCELLED &&
-      updateStatusDto.status !== AppointmentStatus.SCHEDULED
+      appointment.status.name === STATUS.CANCELLED &&
+      (
+        await this.appointmentStatusRepository.findOne({
+          where: { id: updateStatusDto.statusId },
+        })
+      )?.name !== STATUS.SCHEDULED
     ) {
       throw new BadRequestException(
         'Cannot modify a cancelled appointment unless rescheduled.',
       );
     }
 
-    appointment.status = updateStatusDto.status;
+    appointment.statusId = updateStatusDto.statusId;
+    appointment.status = undefined as any;
     return await this.appointmentRepository.save(appointment);
   }
 
@@ -318,9 +366,10 @@ export class AppointmentsService {
 
     const activeAppointments = await this.appointmentRepository
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.status', 'status')
       .where('appointment.doctorId = :doctorId', { doctorId })
-      .andWhere('appointment.status NOT IN (:...cancelledStatuses)', {
-        cancelledStatuses: [AppointmentStatus.CANCELLED],
+      .andWhere('status.name NOT IN (:...cancelledStatusNames)', {
+        cancelledStatusNames: [STATUS.CANCELLED],
       })
       .andWhere('appointment.startTime < :dayEnd', { dayEnd })
       .andWhere('appointment.endTime > :dayStart', { dayStart })
@@ -375,9 +424,10 @@ export class AppointmentsService {
   ): Promise<void> {
     const qb = this.appointmentRepository
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.status', 'status')
       .where('appointment.doctorId = :doctorId', { doctorId })
-      .andWhere('appointment.status NOT IN (:...cancelledStatuses)', {
-        cancelledStatuses: [AppointmentStatus.CANCELLED],
+      .andWhere('status.name NOT IN (:...cancelledStatusNames)', {
+        cancelledStatusNames: [STATUS.CANCELLED],
       })
       .andWhere('appointment.startTime < :endTime', { endTime })
       .andWhere('appointment.endTime > :startTime', { startTime });
@@ -405,16 +455,6 @@ export class AppointmentsService {
     const created = new Date(a.createdAt);
     const modified = a.modifiedAt ? new Date(a.modifiedAt) : null;
 
-    const statusColorMap: Record<AppointmentStatus, string> = {
-      [AppointmentStatus.SCHEDULED]: 'blue',
-      [AppointmentStatus.CONFIRMED]: 'teal',
-      [AppointmentStatus.WAITING]: 'amber',
-      [AppointmentStatus.IN_PROGRESS]: 'purple',
-      [AppointmentStatus.COMPLETED]: 'green',
-      [AppointmentStatus.CANCELLED]: 'red',
-      [AppointmentStatus.NO_SHOW]: 'gray',
-    };
-
     const fullName = (p: typeof patientPerson) =>
       [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ');
 
@@ -424,12 +464,12 @@ export class AppointmentsService {
       doctorId: a.doctorId,
       startTime: a.startTime,
       endTime: a.endTime,
-      status: a.status,
+      status: a.status?.name ?? 'unknown',
       reason: a.reason,
       isWalkIn: a.isWalkIn,
       patientFullName: fullName(patientPerson),
       doctorFullName: fullName(doctorPerson),
-      statusColor: statusColorMap[a.status] ?? 'gray',
+      statusColor: a.status?.color ?? 'gray',
       durationMinutes: Math.round((end.getTime() - start.getTime()) / 60000),
       rescheduled: modified !== null && start.getTime() !== created.getTime(),
       createdAt: a.createdAt,
@@ -439,21 +479,20 @@ export class AppointmentsService {
 
   private mapToCreateResponseDto(
     appointment: Appointment,
-    doctor: Doctor,
-    patient: Patient,
   ): CreateAppointmentResponseDto {
-    const fullName = (p: typeof patient.person) =>
+    const fullName = (p: Person | undefined) =>
       [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ');
 
     return {
       id: appointment.id,
       patientId: appointment.patientId,
-      patientFullName: fullName(patient.person),
+      patientFullName: fullName(appointment.patient?.person),
       doctorId: appointment.doctorId,
-      doctorFullName: fullName(doctor.person),
+      doctorFullName: fullName(appointment.doctor?.person),
       startTime: appointment.startTime,
       endTime: appointment.endTime,
-      status: appointment.status,
+      status: appointment.status?.name ?? 'unknown',
+      statusColor: appointment.status?.color ?? 'gray',
     };
   }
 }

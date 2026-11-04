@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AppointmentStatus } from '../../../common/enums/appointment-status.js';
 
 export class AppointmentListDto {
   @ApiProperty({ example: 101 })
@@ -18,10 +17,10 @@ export class AppointmentListDto {
   endTime: Date;
 
   @ApiProperty({
-    enum: AppointmentStatus,
-    example: AppointmentStatus.SCHEDULED,
+    description: 'Status name from appointment_status table',
+    example: 'scheduled',
   })
-  status: AppointmentStatus;
+  status: string;
 
   @ApiProperty({ example: 'Routine checkup' })
   reason?: string;
@@ -35,7 +34,10 @@ export class AppointmentListDto {
   @ApiProperty({ example: 'María Elena González' })
   doctorFullName: string;
 
-  @ApiProperty({ example: 'blue' })
+  @ApiProperty({
+    description: 'Color for UI display from appointment_status table',
+    example: 'blue',
+  })
   statusColor: string;
 
   @ApiProperty({ example: 45 })

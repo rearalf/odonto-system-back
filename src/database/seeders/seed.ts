@@ -4,6 +4,7 @@ import { databaseConfig } from '../../config/database.config.js';
 import { SeedRegistry } from '../entities/seed-registry.entity.js';
 import { PersonTypeSeeder } from './person-type.seeder.js';
 import { SpecialtySeeder } from './specialty.seeder.js';
+import { AppointmentStatusSeeder } from './appointment-status.seeder.js';
 
 const dataSource = new DataSource({
   ...databaseConfig(),
@@ -14,6 +15,7 @@ const dataSource = new DataSource({
 const seeders = [
   { name: 'PersonTypeSeeder', runner: new PersonTypeSeeder() },
   { name: 'SpecialtySeeder', runner: new SpecialtySeeder() },
+  { name: 'AppointmentStatusSeeder', runner: new AppointmentStatusSeeder() },
 ];
 
 async function seed() {

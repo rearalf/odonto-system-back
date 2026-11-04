@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AppointmentStatus } from '../../../common/enums/appointment-status.js';
 
 export class CreateAppointmentResponseDto {
   @ApiProperty({ example: 101 })
@@ -24,8 +23,14 @@ export class CreateAppointmentResponseDto {
   endTime: Date;
 
   @ApiProperty({
-    enum: AppointmentStatus,
-    example: AppointmentStatus.SCHEDULED,
+    description: 'Status name from appointment_status table',
+    example: 'scheduled',
   })
-  status: AppointmentStatus;
+  status: string;
+
+  @ApiProperty({
+    description: 'Color for UI display from appointment_status table',
+    example: 'blue',
+  })
+  statusColor: string;
 }

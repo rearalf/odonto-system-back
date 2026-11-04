@@ -2,14 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
-import { AppointmentStatus } from '../../../common/enums/appointment-status.js';
 
 export class CreateAppointmentDto {
   @ApiPropertyOptional({
@@ -35,16 +34,17 @@ export class CreateAppointmentDto {
   notes?: string;
 
   @ApiPropertyOptional({
-    description: 'Initial appointment status',
-    enum: AppointmentStatus,
-    default: AppointmentStatus.SCHEDULED,
-    example: AppointmentStatus.SCHEDULED,
+    description:
+      'Initial appointment status ID (references appointment_status table)',
+    example: 1,
+    type: Number,
+    default: 1,
   })
   @IsOptional()
-  @IsEnum(AppointmentStatus, {
-    message: `El estado debe ser un valor válido (${Object.values(AppointmentStatus).join(', ')}).`,
-  })
-  status?: AppointmentStatus;
+  @IsInt({ message: 'El ID del estado debe ser un número entero.' })
+  @Min(1, { message: 'El ID del estado debe ser mayor a 0.' })
+  @Type(() => Number)
+  statusId?: number;
 
   @ApiProperty({
     description: 'Start date and time in UTC (ISO 8601 string)',

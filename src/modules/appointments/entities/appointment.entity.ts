@@ -9,7 +9,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { BaseEntity } from '../../../common/database/base.entity.js';
-import { AppointmentStatus } from '../../../common/enums/appointment-status.js';
+import { AppointmentStatus } from './appointment-status.entity.js';
 
 import { Doctor } from '../../doctors/entities/doctor.entity.js';
 import { Patient } from '../../patients/entities/patient.entity.js';
@@ -45,20 +45,28 @@ export class Appointment extends BaseEntity {
   notes?: string;
 
   @ApiProperty({
-    description: 'Current lifecycle status of the appointment',
-    enum: AppointmentStatus,
-    default: AppointmentStatus.SCHEDULED,
-    example: AppointmentStatus.SCHEDULED,
+    description: 'Foreign key to the appointment status',
+    example: 1,
+    type: Number,
   })
   @Column({
-    type: 'enum',
-    enum: AppointmentStatus,
-    enumName: 'appointment_status',
-    name: 'status',
-    default: AppointmentStatus.SCHEDULED,
-    comment: 'Current status of the appointment',
+    type: 'integer',
+    name: 'status_id',
+    comment: 'Foreign key to appointment_status table',
   })
-  status: AppointmentStatus;
+  @Index('idx_appointment_status_id')
+  statusId: number;
+
+  @ApiPropertyOptional({
+    type: () => AppointmentStatus,
+    description: 'Status entity associated with this appointment',
+  })
+  @ManyToOne(() => AppointmentStatus, (status) => status.appointments, {
+    onDelete: 'RESTRICT',
+    eager: false,
+  })
+  @JoinColumn({ name: 'status_id' })
+  status: Relation<AppointmentStatus>;
 
   @ApiProperty({
     description: 'Scheduled start timestamp with timezone (ISO 8601)',
