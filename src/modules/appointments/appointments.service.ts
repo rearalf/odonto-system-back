@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThan, MoreThan, Not, In } from 'typeorm';
+import { Repository, In, DataSource, EntityManager } from 'typeorm';
 
 import { Appointment } from './entities/appointment.entity.js';
 import { AppointmentStatus } from './entities/appointment-status.entity.js';
@@ -13,7 +13,7 @@ import { Doctor } from '../doctors/entities/doctor.entity.js';
 import { Patient } from '../patients/entities/patient.entity.js';
 import { Person } from '../persons/entities/person.entity.js';
 
-import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
+import { CreateAppointmentWithPatientDto } from './dto/create-appointment-with-patient.dto.js';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
 import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
@@ -25,6 +25,8 @@ import {
 } from '../../common/helpers/pagination-helper.js';
 import { AppointmentListDto } from './dto/appointment-list.dto.js';
 import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
+import { PersonsService } from '../persons/persons.service.js';
+import { PERSON_TYPE_ID } from '../../common/enums/person-type.enum.js';
 
 // Status name constants for business logic (avoid magic strings)
 const STATUS = {
@@ -49,13 +51,16 @@ export class AppointmentsService {
     private readonly doctorRepository: Repository<Doctor>,
     @InjectRepository(Patient)
     private readonly patientRepository: Repository<Patient>,
+    private readonly personsService: PersonsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
-    createDto: CreateAppointmentDto,
+    dto: CreateAppointmentWithPatientDto,
+    _profilePicture?: Express.Multer.File,
   ): Promise<CreateAppointmentResponseDto> {
-    const startTime = new Date(createDto.start_time);
-    const endTime = new Date(createDto.end_time);
+    const startTime = new Date(dto.start_time);
+    const endTime = new Date(dto.end_time);
 
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
       throw new BadRequestException(
@@ -69,8 +74,29 @@ export class AppointmentsService {
       );
     }
 
-    const isWalkIn = createDto.is_walk_in ?? false;
-    let statusId = createDto.statusId;
+    // Validate patient fields if creating new patient
+    if (!dto.patient_id) {
+      const requiredFields = [
+        'firstName',
+        'lastName',
+        'birthDate',
+        'gender',
+        'completeOdontogram',
+      ];
+      for (const field of requiredFields) {
+        if (
+          dto[field as keyof CreateAppointmentWithPatientDto] === undefined ||
+          dto[field as keyof CreateAppointmentWithPatientDto] === null
+        ) {
+          throw new BadRequestException(
+            `El campo ${field} es requerido al crear un paciente nuevo.`,
+          );
+        }
+      }
+    }
+
+    const isWalkIn = dto.is_walk_in ?? false;
+    let statusId = dto.statusId;
 
     if (isWalkIn) {
       const validWalkInStatusNames = [STATUS.WAITING, STATUS.IN_PROGRESS];
@@ -105,54 +131,98 @@ export class AppointmentsService {
       }
     }
 
-    const [doctor, patient] = await Promise.all([
-      this.doctorRepository.findOne({
-        where: { id: createDto.doctor_id },
-        relations: { person: true },
-      }),
-      this.patientRepository.findOne({
-        where: { id: createDto.patient_id },
-        relations: { person: true },
-      }),
-    ]);
+    // Execute everything in a single transaction
+    const savedAppointment = await this.dataSource.transaction(
+      async (manager: EntityManager) => {
+        // 1. Verify doctor exists
+        const doctor = await manager.findOne(Doctor, {
+          where: { id: dto.doctor_id },
+          relations: { person: true },
+        });
+        if (!doctor) {
+          throw new NotFoundException(`Doctor ${dto.doctor_id} no encontrado.`);
+        }
 
-    if (!doctor)
-      throw new NotFoundException(
-        `Doctor ${createDto.doctor_id} no encontrado.`,
-      );
-    if (!patient)
-      throw new NotFoundException(
-        `Paciente ${createDto.patient_id} no encontrado.`,
-      );
+        // 2. Get or create patient
+        let patientId = dto.patient_id;
 
-    const shouldCheckCollision = !(
-      isWalkIn && createDto.allow_overbooking === true
+        if (!patientId) {
+          // Create Person
+          const person = await this.personsService.createWithManager(manager, {
+            firstName: dto.firstName!,
+            middleName: dto.middleName,
+            lastName: dto.lastName!,
+            userId: dto.userId,
+            personTypeId: PERSON_TYPE_ID.PATIENT,
+            phone: dto.phone,
+            address: dto.address,
+            occupation: dto.occupation,
+          });
+
+          // Create Patient
+          const patient = manager.create(Patient, {
+            birthDate: dto.birthDate!,
+            gender: dto.gender!,
+            medicalHistory: dto.medicalHistory,
+            allergicReactions: dto.allergicReactions,
+            currentSystemicTreatment: dto.currentSystemicTreatment,
+            labResults: dto.labResults,
+            completeOdontogram: dto.completeOdontogram!,
+            hasSncIssues: dto.hasSncIssues ?? false,
+            hasSvcIssues: dto.hasSvcIssues ?? false,
+            hasSeIssues: dto.hasSeIssues ?? false,
+            hasSmeIssues: dto.hasSmeIssues ?? false,
+            hasSrIssues: dto.hasSrIssues ?? false,
+            hasSuIssues: dto.hasSuIssues ?? false,
+            hasSguIssues: dto.hasSguIssues ?? false,
+            hasSgiIssues: dto.hasSgiIssues ?? false,
+            systemEvaluationNotes: dto.systemEvaluationNotes,
+            personId: person.id,
+          });
+          const savedPatient = await manager.save(patient);
+          patientId = savedPatient.id;
+        } else {
+          // Verify existing patient exists
+          const patient = await manager.findOne(Patient, {
+            where: { id: patientId },
+          });
+          if (!patient) {
+            throw new NotFoundException(`Paciente ${patientId} no encontrado.`);
+          }
+        }
+
+        // 3. Validate doctor availability (skip for walk-in with allow_overbooking)
+        const shouldCheckCollision = !(
+          isWalkIn && dto.allow_overbooking === true
+        );
+        if (shouldCheckCollision) {
+          await this.validateDoctorAvailabilityWithManager(
+            manager,
+            dto.doctor_id,
+            startTime,
+            endTime,
+          );
+        }
+
+        // 4. Create appointment
+        const appointment = manager.create(Appointment, {
+          reason: dto.reason,
+          notes: dto.notes,
+          statusId,
+          startTime,
+          endTime,
+          doctorId: dto.doctor_id,
+          patientId,
+          isWalkIn,
+        });
+
+        return await manager.save(appointment);
+      },
     );
-
-    if (shouldCheckCollision) {
-      await this.validateDoctorAvailability(
-        createDto.doctor_id,
-        startTime,
-        endTime,
-      );
-    }
-
-    const appointment = this.appointmentRepository.create({
-      reason: createDto.reason,
-      notes: createDto.notes,
-      statusId,
-      startTime,
-      endTime,
-      doctorId: createDto.doctor_id,
-      patientId: createDto.patient_id,
-      isWalkIn,
-    });
-
-    const saved = await this.appointmentRepository.save(appointment);
 
     // Load the status relation for the response
     const appointmentWithStatus = await this.appointmentRepository.findOne({
-      where: { id: saved.id },
+      where: { id: savedAppointment.id },
       relations: {
         status: true,
         doctor: { person: true },
@@ -411,6 +481,38 @@ export class AppointmentsService {
   ): Promise<void> {
     const qb = this.appointmentRepository
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.status', 'status')
+      .where('appointment.doctorId = :doctorId', { doctorId })
+      .andWhere('status.name NOT IN (:...cancelledStatusNames)', {
+        cancelledStatusNames: [STATUS.CANCELLED],
+      })
+      .andWhere('appointment.startTime < :endTime', { endTime })
+      .andWhere('appointment.endTime > :startTime', { startTime });
+
+    if (excludeAppointmentId) {
+      qb.andWhere('appointment.id != :excludeAppointmentId', {
+        excludeAppointmentId,
+      });
+    }
+
+    const collision = await qb.getOne();
+
+    if (collision) {
+      throw new ConflictException(
+        `The doctor already has an active appointment between ${collision.startTime.toISOString()} and ${collision.endTime.toISOString()}.`,
+      );
+    }
+  }
+
+  private async validateDoctorAvailabilityWithManager(
+    manager: EntityManager,
+    doctorId: number,
+    startTime: Date,
+    endTime: Date,
+    excludeAppointmentId?: number,
+  ): Promise<void> {
+    const qb = manager
+      .createQueryBuilder(Appointment, 'appointment')
       .leftJoinAndSelect('appointment.status', 'status')
       .where('appointment.doctorId = :doctorId', { doctorId })
       .andWhere('status.name NOT IN (:...cancelledStatusNames)', {

@@ -1,25 +1,30 @@
 import {
-  Controller,
   Get,
   Post,
+  Body,
   Patch,
   Param,
-  Body,
   Query,
-  ParseIntPipe,
-  HttpStatus,
   HttpCode,
+  Controller,
+  HttpStatus,
+  UploadedFile,
+  ParseIntPipe,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
-  ApiOperation,
-  ApiResponse,
+  ApiBody,
   ApiParam,
-  ApiBadRequestResponse,
+  ApiConsumes,
+  ApiResponse,
+  ApiOperation,
   ApiNotFoundResponse,
   ApiConflictResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
-import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
+import { CreateAppointmentWithPatientDto } from './dto/create-appointment-with-patient.dto.js';
 import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
 import { Appointment } from './entities/appointment.entity.js';
 import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
@@ -34,6 +39,11 @@ import {
   PaginatedAppointmentsResponseDto,
 } from './dto/appointment-list.dto.js';
 import { AppointmentStatusDto } from './dto/appointment-status.dto.js';
+import {
+  ParseFilePipe,
+  FileTypeValidator,
+  MaxFileSizeValidator,
+} from '@nestjs/common';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -42,10 +52,19 @@ export class AppointmentsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor('profilePicture'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Schedule a new appointment',
+    summary: 'Schedule a new appointment (with optional patient creation)',
     description:
-      'Creates an appointment record linking a doctor and a patient within a reserved time window.',
+      'Creates an appointment record linking a doctor and a patient. If patient_id is not provided, ' +
+      'creates a new patient (person + patient) in the same transaction. ' +
+      'Accepts multipart/form-data for optional profile picture upload.',
+  })
+  @ApiBody({
+    description:
+      'Appointment creation payload with optional patient data and binary avatar',
+    type: CreateAppointmentWithPatientDto,
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -53,15 +72,26 @@ export class AppointmentsController {
     type: CreateAppointmentResponseDto,
   })
   @ApiBadRequestResponse({
-    description: 'Validation failed on input payloads or dates.',
+    description:
+      'Validation failed on input payloads or dates, or required patient fields missing.',
   })
   @ApiConflictResponse({
     description: 'The selected doctor has a scheduling overlap.',
   })
   async create(
-    @Body() createAppointmentDto: CreateAppointmentDto,
+    @Body() dto: CreateAppointmentWithPatientDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    profilePicture?: Express.Multer.File,
   ): Promise<CreateAppointmentResponseDto> {
-    return this.appointmentsService.create(createAppointmentDto);
+    return this.appointmentsService.create(dto, profilePicture);
   }
 
   @Get()
