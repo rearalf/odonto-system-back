@@ -279,9 +279,10 @@ export class AppointmentsService {
       });
     }
 
-    const sortBy = query.sortBy ?? 'startTime';
+    const sortBy = query.sortBy ?? 'status';
     const sortOrder = query.sortOrder ?? 'ASC';
     const allowedFields = [
+      'status',
       'startTime',
       'endTime',
       'createdAt',
@@ -290,7 +291,34 @@ export class AppointmentsService {
     ];
     const safeSortBy = allowedFields.includes(sortBy) ? sortBy : 'startTime';
 
-    qb.orderBy(`appointment.${safeSortBy}`, sortOrder);
+    if (query.statusPriority) {
+      const priorityIds = query.statusPriority
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => /^\d+$/.test(id));
+
+      if (priorityIds.length > 0) {
+        const caseExpression = priorityIds
+          .map(
+            (id, index) =>
+              `WHEN appointment.statusId = ${id} THEN ${index + 1}`,
+          )
+          .join(' ');
+
+        qb.orderBy(
+          `CASE ${caseExpression} ELSE ${priorityIds.length + 1} END`,
+          'ASC',
+        );
+      } else if (safeSortBy === 'status') {
+        qb.orderBy('status.sortOrder', sortOrder);
+      } else {
+        qb.orderBy(`appointment.${safeSortBy}`, sortOrder);
+      }
+    } else if (safeSortBy === 'status') {
+      qb.orderBy('status.sortOrder', sortOrder);
+    } else {
+      qb.orderBy(`appointment.${safeSortBy}`, sortOrder);
+    }
 
     const { pagination = true, page = 1, per_page: perPage = 10 } = query;
 

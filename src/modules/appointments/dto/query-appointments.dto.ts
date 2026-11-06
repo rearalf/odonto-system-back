@@ -59,15 +59,40 @@ export class QueryAppointmentsDto extends PaginationDto {
   status?: number[];
 
   @ApiPropertyOptional({
+    description:
+      'Custom priority order for statuses (comma-separated IDs, e.g., "3,1,5")',
+    example: '3,1,5',
+    type: String,
+  })
+  @IsOptional()
+  @IsString({
+    message: 'La prioridad de estados debe ser una cadena de texto.',
+  })
+  statusPriority?: string;
+
+  @ApiPropertyOptional({
     description: 'Field to sort by',
-    enum: ['startTime', 'endTime', 'createdAt', 'updatedAt', 'modifiedAt'],
+    enum: [
+      'status',
+      'startTime',
+      'endTime',
+      'createdAt',
+      'updatedAt',
+      'modifiedAt',
+    ],
     example: 'startTime',
   })
   @IsOptional()
   @IsString({
     message: 'El campo de ordenamiento debe ser una cadena de texto.',
   })
-  sortBy?: 'startTime' | 'endTime' | 'createdAt' | 'updatedAt' | 'modifiedAt';
+  sortBy?:
+    | 'status'
+    | 'startTime'
+    | 'endTime'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'modifiedAt';
 
   @ApiPropertyOptional({
     description: 'Sort direction',
