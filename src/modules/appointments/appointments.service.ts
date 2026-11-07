@@ -27,6 +27,7 @@ import { AppointmentListDto } from './dto/appointment-list.dto.js';
 import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
 import { PersonsService } from '../persons/persons.service.js';
 import { PERSON_TYPE_ID } from '../../common/enums/person-type.enum.js';
+import { AppointmentDetailResponseDto } from './dto/appointment-detail-response.dto.js';
 
 // Status name constants for business logic (avoid magic strings)
 const STATUS = {
@@ -339,15 +340,48 @@ export class AppointmentsService {
     return { data: data.map((a) => this.mapToListDto(a)), meta: null };
   }
 
-  async findOne(id: number): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findOne({
-      where: { id },
-      relations: {
-        doctor: true,
-        patient: true,
-        status: true,
-      },
-    });
+  async findOne(id: number): Promise<AppointmentDetailResponseDto> {
+    const appointment = await this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .select('appointment')
+      .leftJoin('appointment.doctor', 'doctor')
+      .addSelect(['doctor.id'])
+      .leftJoin('doctor.person', 'doctorPerson')
+      .addSelect([
+        'doctorPerson.firstName',
+        'doctorPerson.middleName',
+        'doctorPerson.lastName',
+        'doctorPerson.phone',
+        'doctorPerson.profilePictureUrl',
+      ])
+      .leftJoin('doctor.doctorSpecialtys', 'doctorSpecialty')
+      .addSelect(['doctorSpecialty.id', 'doctorSpecialty.isPrimary'])
+      .leftJoin('doctorSpecialty.specialty', 'specialty')
+      .addSelect(['specialty.id', 'specialty.name'])
+      .leftJoin('appointment.patient', 'patient')
+      .addSelect([
+        'patient.id',
+        'patient.birthDate',
+        'patient.gender',
+        'patient.completeOdontogram',
+      ])
+      .leftJoin('patient.person', 'person')
+      .addSelect([
+        'person.firstName',
+        'person.middleName',
+        'person.lastName',
+        'person.phone',
+        'person.profilePictureUrl',
+      ])
+      .leftJoin('appointment.status', 'status')
+      .addSelect([
+        'status.id',
+        'status.name',
+        'status.color',
+        'status.description',
+      ])
+      .where('appointment.id = :id', { id })
+      .getOne();
 
     if (!appointment) {
       throw new NotFoundException(`Appointment with ID ${id} not found.`);
@@ -360,7 +394,18 @@ export class AppointmentsService {
     id: number,
     rescheduleDto: RescheduleAppointmentDto,
   ): Promise<Appointment> {
-    const appointment = await this.findOne(id);
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id },
+      relations: {
+        doctor: true,
+        patient: true,
+        status: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${id} not found.`);
+    }
 
     if (
       appointment.status.name === STATUS.CANCELLED ||
@@ -403,7 +448,18 @@ export class AppointmentsService {
     id: number,
     updateStatusDto: UpdateAppointmentStatusDto,
   ): Promise<Appointment> {
-    const appointment = await this.findOne(id);
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id },
+      relations: {
+        doctor: true,
+        patient: true,
+        status: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${id} not found.`);
+    }
 
     if (
       appointment.status.name === STATUS.CANCELLED &&

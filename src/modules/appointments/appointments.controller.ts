@@ -44,6 +44,7 @@ import {
   FileTypeValidator,
   MaxFileSizeValidator,
 } from '@nestjs/common';
+import { AppointmentDetailResponseDto } from './dto/appointment-detail-response.dto.js';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -172,12 +173,14 @@ export class AppointmentsController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Appointment details retrieved successfully.',
-    type: Appointment,
+    type: AppointmentDetailResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'No appointment found matching the provided ID.',
   })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Appointment> {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<AppointmentDetailResponseDto> {
     return this.appointmentsService.findOne(id);
   }
 
