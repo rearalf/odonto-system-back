@@ -341,9 +341,28 @@ export class AppointmentsService {
   }
 
   async findOne(id: number): Promise<AppointmentDetailResponseDto> {
+    const getFullName = (person: {
+      firstName: string;
+      middleName: string | null;
+      lastName: string;
+    }) => {
+      return [person.firstName, person.middleName, person.lastName]
+        .filter(Boolean)
+        .join(' ');
+    };
+
     const appointment = await this.appointmentRepository
       .createQueryBuilder('appointment')
-      .select('appointment')
+      .select([
+        'appointment.id',
+        'appointment.reason',
+        'appointment.notes',
+        'appointment.startTime',
+        'appointment.endTime',
+        'appointment.modifiedAt',
+        'appointment.modificationReason',
+        'appointment.isWalkIn',
+      ])
       .leftJoin('appointment.doctor', 'doctor')
       .addSelect(['doctor.id'])
       .leftJoin('doctor.person', 'doctorPerson')
@@ -357,7 +376,7 @@ export class AppointmentsService {
       .leftJoin('doctor.doctorSpecialtys', 'doctorSpecialty')
       .addSelect(['doctorSpecialty.id', 'doctorSpecialty.isPrimary'])
       .leftJoin('doctorSpecialty.specialty', 'specialty')
-      .addSelect(['specialty.id', 'specialty.name'])
+      .addSelect(['specialty.id', 'specialty.name', 'specialty.description'])
       .leftJoin('appointment.patient', 'patient')
       .addSelect([
         'patient.id',
@@ -387,7 +406,60 @@ export class AppointmentsService {
       throw new NotFoundException(`Appointment with ID ${id} not found.`);
     }
 
-    return appointment;
+    return {
+      id: appointment.id,
+      reason: appointment.reason,
+      notes: appointment.notes,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      modifiedAt: appointment.modifiedAt,
+      modificationReason: appointment.modificationReason,
+      isWalkIn: appointment.isWalkIn,
+      status: {
+        id: appointment.status.id,
+        name: appointment.status.name,
+        color: appointment.status.color,
+        description: appointment.status.description,
+      },
+      doctor: {
+        id: appointment.doctor.id,
+        fullName: getFullName({
+          firstName: appointment.doctor.person.firstName,
+          middleName: appointment.doctor.person.middleName,
+          lastName: appointment.doctor.person.lastName,
+        }),
+        firstName: appointment.doctor.person.firstName,
+        middleName: appointment.doctor.person.middleName,
+        lastName: appointment.doctor.person.lastName,
+        profilePictureUrl: null,
+        phone: appointment.doctor.person.phone,
+
+        specialties: appointment.doctor.doctorSpecialtys.map(
+          ({ specialty, isPrimary }) => ({
+            isPrimary,
+            id: specialty.id,
+            name: specialty.name,
+            description: specialty.description,
+          }),
+        ),
+      },
+      patient: {
+        id: appointment.patient.id,
+        fullName: getFullName({
+          firstName: appointment.patient.person.firstName,
+          middleName: appointment.patient.person.middleName,
+          lastName: appointment.patient.person.lastName,
+        }),
+        firstName: appointment.patient.person.firstName,
+        middleName: appointment.patient.person.middleName,
+        lastName: appointment.patient.person.lastName,
+        profilePictureUrl: null,
+        phone: appointment.patient.person.phone,
+        birthDate: appointment.patient.birthDate,
+        gender: appointment.patient.gender,
+        completeOdontogram: appointment.patient.completeOdontogram,
+      },
+    };
   }
 
   async reschedule(
