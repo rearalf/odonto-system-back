@@ -59,6 +59,13 @@ const APPOINTMENT_STATUSES = [
     description: 'Cita rechazada',
     sortOrder: 8,
   },
+  {
+    id: 9,
+    name: 'rescheduled',
+    color: '#3b82f6',
+    description: 'Cita reprogramada',
+    sortOrder: 9,
+  },
 ];
 
 export class AppointmentStatusSeeder implements Seeder {
