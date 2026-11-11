@@ -7,39 +7,27 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, DataSource, EntityManager } from 'typeorm';
 
-import { Appointment } from './entities/appointment.entity.js';
-import { AppointmentStatus } from './entities/appointment-status.entity.js';
-import { Doctor } from '../doctors/entities/doctor.entity.js';
-import { Patient } from '../patients/entities/patient.entity.js';
-import { Person } from '../persons/entities/person.entity.js';
+import { Appointment } from '../entities/appointment.entity.js';
+import { AppointmentStatus } from '../entities/appointment-status.entity.js';
+import { Doctor } from '../../doctors/entities/doctor.entity.js';
+import { Patient } from '../../patients/entities/patient.entity.js';
+import { Person } from '../../persons/entities/person.entity.js';
 
-import { CreateAppointmentWithPatientDto } from './dto/create-appointment-with-patient.dto.js';
-import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
-import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
-import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
-import { AvailableSlotDto } from './dto/available-slot.dto.js';
-import { AvailableSlotsQueryDto } from './dto/available-slots-query.dto.js';
+import { CreateAppointmentWithPatientDto } from '../dto/create-appointment-with-patient.dto.js';
+import { RescheduleAppointmentDto } from '../dto/reschedule-appointment.dto.js';
+import { QueryAppointmentsDto } from '../dto/query-appointments.dto.js';
+import { AvailableSlotDto } from '../dto/available-slot.dto.js';
+import { AvailableSlotsQueryDto } from '../dto/available-slots-query.dto.js';
 import {
   PaginationHelper,
   PaginationMeta,
-} from '../../common/helpers/pagination-helper.js';
-import { AppointmentListDto } from './dto/appointment-list.dto.js';
-import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
-import { PersonsService } from '../persons/persons.service.js';
-import { PERSON_TYPE_ID } from '../../common/enums/person-type.enum.js';
-import { AppointmentDetailResponseDto } from './dto/appointment-detail-response.dto.js';
-
-// Status name constants for business logic (avoid magic strings)
-const STATUS = {
-  SCHEDULED: 'scheduled',
-  CONFIRMED: 'confirmed',
-  WAITING: 'waiting',
-  IN_PROGRESS: 'in_progress',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled',
-  NO_SHOW: 'no_show',
-  REJECTED: 'rejected',
-} as const;
+} from '../../../common/helpers/pagination-helper.js';
+import { AppointmentListDto } from '../dto/appointment-list.dto.js';
+import { CreateAppointmentResponseDto } from '../dto/create-appointment-response.dto.js';
+import { PersonsService } from '../../persons/persons.service.js';
+import { PERSON_TYPE_ID } from '../../../common/enums/person-type.enum.js';
+import { AppointmentDetailResponseDto } from '../dto/appointment-detail-response.dto.js';
+import { APPOINTMENT_STATUS } from '../constants/appointment-status.constant.js';
 
 @Injectable()
 export class AppointmentsService {
@@ -75,7 +63,6 @@ export class AppointmentsService {
       );
     }
 
-    // Validate patient fields if creating new patient
     if (!dto.patient_id) {
       const requiredFields = [
         'firstName',
@@ -100,14 +87,18 @@ export class AppointmentsService {
     let statusId = dto.statusId;
 
     if (isWalkIn) {
-      const validWalkInStatusNames = [STATUS.WAITING, STATUS.IN_PROGRESS];
+      const validWalkInStatusNames = [
+        APPOINTMENT_STATUS.WAITING,
+        APPOINTMENT_STATUS.IN_PROGRESS,
+      ];
       const validStatuses = await this.appointmentStatusRepository.find({
         where: { name: In(validWalkInStatusNames) },
       });
       const validStatusIds = validStatuses.map((s) => s.id);
       statusId = validStatusIds.includes(statusId as number)
         ? statusId
-        : (validStatuses.find((s) => s.name === STATUS.WAITING)?.id ?? 1);
+        : (validStatuses.find((s) => s.name === APPOINTMENT_STATUS.WAITING)
+            ?.id ?? 1);
 
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
       if (startTime < thirtyMinutesAgo) {
@@ -116,14 +107,18 @@ export class AppointmentsService {
         );
       }
     } else {
-      const validRegularStatusNames = [STATUS.SCHEDULED, STATUS.CONFIRMED];
+      const validRegularStatusNames = [
+        APPOINTMENT_STATUS.SCHEDULED,
+        APPOINTMENT_STATUS.CONFIRMED,
+      ];
       const validStatuses = await this.appointmentStatusRepository.find({
         where: { name: In(validRegularStatusNames) },
       });
       const validStatusIds = validStatuses.map((s) => s.id);
       statusId = validStatusIds.includes(statusId as number)
         ? statusId
-        : (validStatuses.find((s) => s.name === STATUS.SCHEDULED)?.id ?? 1);
+        : (validStatuses.find((s) => s.name === APPOINTMENT_STATUS.SCHEDULED)
+            ?.id ?? 1);
 
       if (startTime < new Date()) {
         throw new BadRequestException(
@@ -132,10 +127,8 @@ export class AppointmentsService {
       }
     }
 
-    // Execute everything in a single transaction
     const savedAppointment = await this.dataSource.transaction(
       async (manager: EntityManager) => {
-        // 1. Verify doctor exists
         const doctor = await manager.findOne(Doctor, {
           where: { id: dto.doctor_id },
           relations: { person: true },
@@ -144,11 +137,9 @@ export class AppointmentsService {
           throw new NotFoundException(`Doctor ${dto.doctor_id} no encontrado.`);
         }
 
-        // 2. Get or create patient
         let patientId = dto.patient_id;
 
         if (!patientId) {
-          // Create Person
           const person = await this.personsService.createWithManager(manager, {
             firstName: dto.firstName!,
             middleName: dto.middleName,
@@ -160,7 +151,6 @@ export class AppointmentsService {
             occupation: dto.occupation,
           });
 
-          // Create Patient
           const patient = manager.create(Patient, {
             birthDate: dto.birthDate!,
             gender: dto.gender!,
@@ -183,7 +173,6 @@ export class AppointmentsService {
           const savedPatient = await manager.save(patient);
           patientId = savedPatient.id;
         } else {
-          // Verify existing patient exists
           const patient = await manager.findOne(Patient, {
             where: { id: patientId },
           });
@@ -192,7 +181,6 @@ export class AppointmentsService {
           }
         }
 
-        // 3. Validate doctor availability (skip for walk-in with allow_overbooking)
         const shouldCheckCollision = !(
           isWalkIn && dto.allow_overbooking === true
         );
@@ -205,7 +193,6 @@ export class AppointmentsService {
           );
         }
 
-        // 4. Create appointment
         const appointment = manager.create(Appointment, {
           reason: dto.reason,
           notes: dto.notes,
@@ -221,7 +208,6 @@ export class AppointmentsService {
       },
     );
 
-    // Load the status relation for the response
     const appointmentWithStatus = await this.appointmentRepository.findOne({
       where: { id: savedAppointment.id },
       relations: {
@@ -480,8 +466,8 @@ export class AppointmentsService {
     }
 
     if (
-      appointment.status.name === STATUS.CANCELLED ||
-      appointment.status.name === STATUS.COMPLETED
+      appointment.status.name === APPOINTMENT_STATUS.CANCELLED ||
+      appointment.status.name === APPOINTMENT_STATUS.COMPLETED
     ) {
       throw new BadRequestException(
         `Cannot reschedule an appointment that is already ${appointment.status.name}.`,
@@ -516,41 +502,6 @@ export class AppointmentsService {
     return await this.appointmentRepository.save(appointment);
   }
 
-  async updateStatus(
-    id: number,
-    updateStatusDto: UpdateAppointmentStatusDto,
-  ): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findOne({
-      where: { id },
-      relations: {
-        doctor: true,
-        patient: true,
-        status: true,
-      },
-    });
-
-    if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${id} not found.`);
-    }
-
-    if (
-      appointment.status.name === STATUS.CANCELLED &&
-      (
-        await this.appointmentStatusRepository.findOne({
-          where: { id: updateStatusDto.statusId },
-        })
-      )?.name !== STATUS.SCHEDULED
-    ) {
-      throw new BadRequestException(
-        'Cannot modify a cancelled appointment unless rescheduled.',
-      );
-    }
-
-    appointment.statusId = updateStatusDto.statusId;
-    appointment.status = undefined as any;
-    return await this.appointmentRepository.save(appointment);
-  }
-
   async getDoctorAvailableSlots(
     doctorId: number,
     query: AvailableSlotsQueryDto,
@@ -582,7 +533,7 @@ export class AppointmentsService {
       .leftJoinAndSelect('appointment.status', 'status')
       .where('appointment.doctorId = :doctorId', { doctorId })
       .andWhere('status.name NOT IN (:...cancelledStatusNames)', {
-        cancelledStatusNames: [STATUS.CANCELLED],
+        cancelledStatusNames: [APPOINTMENT_STATUS.CANCELLED],
       })
       .andWhere('appointment.startTime < :dayEnd', { dayEnd })
       .andWhere('appointment.endTime > :dayStart', { dayStart })
@@ -640,7 +591,7 @@ export class AppointmentsService {
       .leftJoinAndSelect('appointment.status', 'status')
       .where('appointment.doctorId = :doctorId', { doctorId })
       .andWhere('status.name NOT IN (:...cancelledStatusNames)', {
-        cancelledStatusNames: [STATUS.CANCELLED],
+        cancelledStatusNames: [APPOINTMENT_STATUS.CANCELLED],
       })
       .andWhere('appointment.startTime < :endTime', { endTime })
       .andWhere('appointment.endTime > :startTime', { startTime });
@@ -672,7 +623,7 @@ export class AppointmentsService {
       .leftJoinAndSelect('appointment.status', 'status')
       .where('appointment.doctorId = :doctorId', { doctorId })
       .andWhere('status.name NOT IN (:...cancelledStatusNames)', {
-        cancelledStatusNames: [STATUS.CANCELLED],
+        cancelledStatusNames: [APPOINTMENT_STATUS.CANCELLED],
       })
       .andWhere('appointment.startTime < :endTime', { endTime })
       .andWhere('appointment.endTime > :startTime', { startTime });
@@ -739,21 +690,5 @@ export class AppointmentsService {
       status: appointment.status?.name ?? 'unknown',
       statusColor: appointment.status?.color ?? 'gray',
     };
-  }
-
-  async getStatuses(): Promise<AppointmentStatus[]> {
-    const status = await this.appointmentStatusRepository
-      .createQueryBuilder('appointment_status')
-      .where('appointment_status.isActive = true')
-      .orderBy('appointment_status.sortOrder', 'ASC')
-      .select([
-        'appointment_status.id',
-        'appointment_status.name',
-        'appointment_status.color',
-        'appointment_status.description',
-      ])
-      .getMany();
-
-    return JSON.parse(JSON.stringify(status));
   }
 }

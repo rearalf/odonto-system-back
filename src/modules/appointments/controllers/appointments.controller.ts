@@ -24,27 +24,27 @@ import {
   ApiConflictResponse,
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
-import { CreateAppointmentWithPatientDto } from './dto/create-appointment-with-patient.dto.js';
-import { CreateAppointmentResponseDto } from './dto/create-appointment-response.dto.js';
-import { Appointment } from './entities/appointment.entity.js';
-import { QueryAppointmentsDto } from './dto/query-appointments.dto.js';
-import { AvailableSlotDto } from './dto/available-slot.dto.js';
-import { AvailableSlotsQueryDto } from './dto/available-slots-query.dto.js';
-import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
-import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto.js';
-import { PaginationMeta } from '../../common/helpers/pagination-helper.js';
-import { AppointmentsService } from './appointments.service.js';
+import { CreateAppointmentWithPatientDto } from '../dto/create-appointment-with-patient.dto.js';
+import { CreateAppointmentResponseDto } from '../dto/create-appointment-response.dto.js';
+import { Appointment } from '../entities/appointment.entity.js';
+import { QueryAppointmentsDto } from '../dto/query-appointments.dto.js';
+import { AvailableSlotDto } from '../dto/available-slot.dto.js';
+import { AvailableSlotsQueryDto } from '../dto/available-slots-query.dto.js';
+import { UpdateAppointmentStatusDto } from '../dto/update-appointment-status.dto.js';
+import { RescheduleAppointmentDto } from '../dto/reschedule-appointment.dto.js';
+import { PaginationMeta } from '../../../common/helpers/pagination-helper.js';
+import { AppointmentsService } from '../services/appointments.service.js';
 import {
   AppointmentListDto,
   PaginatedAppointmentsResponseDto,
-} from './dto/appointment-list.dto.js';
-import { AppointmentStatusDto } from './dto/appointment-status.dto.js';
+} from '../dto/appointment-list.dto.js';
+import { AppointmentStatusDto } from '../dto/appointment-status.dto.js';
 import {
   ParseFilePipe,
   FileTypeValidator,
   MaxFileSizeValidator,
 } from '@nestjs/common';
-import { AppointmentDetailResponseDto } from './dto/appointment-detail-response.dto.js';
+import { AppointmentDetailResponseDto } from '../dto/appointment-detail-response.dto.js';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -111,24 +111,6 @@ export class AppointmentsController {
     @Query() query: QueryAppointmentsDto,
   ): Promise<{ data: AppointmentListDto[]; meta: PaginationMeta | null }> {
     return this.appointmentsService.findAll(query);
-  }
-
-  @Get('statuses')
-  @ApiOperation({
-    summary: 'Get all available appointment statuses',
-    description:
-      'Returns a list of all active appointment statuses with their IDs, names, colors, and descriptions. ' +
-      'Use this endpoint to populate status dropdowns in the frontend. ' +
-      'The `statusId` from this response should be used when creating or updating appointments.',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description:
-      'List of active appointment statuses ordered by display order.',
-    type: [AppointmentStatusDto],
-  })
-  async getStatuses(): Promise<AppointmentStatusDto[]> {
-    return this.appointmentsService.getStatuses();
   }
 
   @Get('doctor/:id/available-slots')
@@ -215,35 +197,5 @@ export class AppointmentsController {
     @Body() rescheduleDto: RescheduleAppointmentDto,
   ): Promise<Appointment> {
     return this.appointmentsService.reschedule(id, rescheduleDto);
-  }
-
-  @Patch(':id/status')
-  @ApiOperation({
-    summary: 'Advance appointment lifecycle status',
-    description:
-      'Transitions the appointment status (e.g., from scheduled to confirmed, completed, or cancelled).',
-  })
-  @ApiParam({
-    name: 'id',
-    type: Number,
-    description: 'Unique identifier of the appointment',
-    example: 101,
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Appointment status transitioned successfully.',
-    type: Appointment,
-  })
-  @ApiBadRequestResponse({
-    description: 'Supplied status transition is illegal or invalid.',
-  })
-  @ApiNotFoundResponse({
-    description: 'Appointment not found.',
-  })
-  async updateStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateStatusDto: UpdateAppointmentStatusDto,
-  ): Promise<Appointment> {
-    return this.appointmentsService.updateStatus(id, updateStatusDto);
   }
 }
