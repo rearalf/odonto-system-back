@@ -49,10 +49,11 @@
     "dotenv": "^17.4.2",
     "helmet": "^8.3.0",
     "pg": "^8.23.0",
+    "puppeteer": "^25.18.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.31",
-    "tsx": "^4.23.13"
+    "tsx": "^4.23.13",
+    "typeorm": "^0.3.31"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",

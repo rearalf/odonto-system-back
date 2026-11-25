@@ -11,6 +11,7 @@ import { SpecialtiesModule } from './modules/specialties/specialties.module.js';
 import { PatientsModule } from './modules/patients/patients.module.js';
 import { DoctorsModule } from './modules/doctors/doctors.module.js';
 import { PersonsModule } from './modules/persons/persons.module.js';
+import { RadiographyReportsModule } from './modules/radiography-reports/radiography-reports.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { PersonsModule } from './modules/persons/persons.module.js';
     AppointmentsModule,
     PersonTypesModule,
     PersonsModule,
+    RadiographyReportsModule,
   ],
   controllers: [],
   providers: [],
